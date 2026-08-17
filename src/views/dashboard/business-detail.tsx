@@ -1,0 +1,617 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import { useApp } from "@/lib/store";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { EmptyState } from "@/components/blaknet/section";
+import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
+import type { Business, VerificationStatus } from "@/lib/types";
+import { formatDate, formatNumber, provinceCity, verificationLabel } from "@/lib/format";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
+  Eye,
+  Globe,
+  Mail,
+  Phone,
+  MessageCircle,
+  MapPin,
+  Calendar,
+  Pencil,
+  Sparkles,
+  AlertCircle,
+  Briefcase,
+  Package,
+  X,
+} from "lucide-react";
+
+const VERIFICATION_TYPES = [
+  { value: "CIPC", label: "CIPC registration" },
+  { value: "B-BBEE", label: "B-BBEE certificate" },
+  { value: "TAX", label: "Tax clearance" },
+  { value: "CERTIFICATION", label: "Industry certification" },
+];
+
+export function BusinessDetailView() {
+  const route = useApp((s) => s.route);
+  if (route.name !== "dashboard-business") return null;
+  // `key` ensures the inner component fully remounts on id change → all
+  // state (loading, notFound, verify form) resets cleanly between businesses.
+  return <BusinessDetail key={route.id} id={route.id} />;
+}
+
+function BusinessDetail({ id }: { id: string }) {
+  const navigate = useApp((s) => s.navigate);
+  const { toast } = useToast();
+
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [showVerifyForm, setShowVerifyForm] = useState(false);
+
+  // verification form state
+  const [verificationType, setVerificationType] = useState("CIPC");
+  const [documentUrl, setDocumentUrl] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api<{ items: Business[] }>("/api/businesses/owner")
+      .then((d) => {
+        if (cancelled) return;
+        const found = (d.items ?? []).find((b) => b.id === id);
+        if (found) setBusiness(found);
+        else setNotFound(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setNotFound(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const refetch = () => {
+    api<{ items: Business[] }>("/api/businesses/owner")
+      .then((d) => {
+        const found = (d.items ?? []).find((b) => b.id === id);
+        if (found) setBusiness(found);
+      })
+      .catch(() => {
+        /* silent */
+      });
+  };
+
+  const handleEditClick = () => {
+    toast({
+      title: "Editing is coming soon",
+      description: "We're polishing inline editing. Reach out to support@blaknet.co.za if you need a change now.",
+    });
+  };
+
+  const handleVerifySubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!business) return;
+    setSubmitting(true);
+    try {
+      await api("/api/verification", {
+        method: "POST",
+        json: {
+          businessId: business.id,
+          verificationType,
+          notes: notes.trim() || undefined,
+          documentUrl: documentUrl.trim() || undefined,
+        },
+      });
+      toast({
+        title: "Verification submitted",
+        description: "We'll review within 2 business days.",
+      });
+      setShowVerifyForm(false);
+      setNotes("");
+      setDocumentUrl("");
+      refetch();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not submit verification.";
+      toast({
+        title: "Couldn't submit verification",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-40 rounded-md" />
+        <Skeleton className="h-36 w-full rounded-2xl" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Skeleton className="lg:col-span-2 h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !business) {
+    return (
+      <EmptyState
+        icon={Building2}
+        title="Business not found"
+        description="This business doesn't exist, or you don't have access to manage it."
+        action={
+          <Button onClick={() => navigate({ name: "dashboard-businesses" })} className="bg-ink text-cream hover:bg-ink/90">
+            <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to my businesses
+          </Button>
+        }
+      />
+    );
+  }
+
+  const status = business.verificationStatus;
+  const isVerified = status === "VERIFIED";
+  const isPending = status === "PENDING";
+
+  return (
+    <div className="space-y-6">
+      <button
+        onClick={() => navigate({ name: "dashboard-businesses" })}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to my businesses
+      </button>
+
+      {/* Header card */}
+      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          {business.logoUrl ? (
+            <img
+              src={business.logoUrl}
+              alt={business.name}
+              className="h-16 w-16 shrink-0 rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-ink font-display text-2xl text-cream">
+              {business.name[0]?.toUpperCase() ?? "?"}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">
+                {business.name}
+              </h1>
+              <VerifiedBadge status={status} size="md" />
+              <BBBEEBadge level={business.bbbeeLevel} />
+              {business.featured && <Pill tone="cream">Featured</Pill>}
+            </div>
+
+            {business.tagline && (
+              <p className="mt-1 text-sm text-muted-foreground">{business.tagline}</p>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> {provinceCity(business)}
+              </span>
+              {business.industry && (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="h-3 w-3" /> {business.industry.name}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1">
+                <Eye className="h-3 w-3" /> {formatNumber(business.views)} views
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Added {formatDate(business.createdAt, { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            </div>
+
+            {/* Profile completion */}
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-1.5 w-40 max-w-full">
+                <Progress value={business.profileCompletion} className="h-1.5" />
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {business.profileCompletion}% complete
+              </span>
+              {business.profileCompletion < 100 && (
+                <span className="hidden text-[11px] text-foreground/40 sm:inline">
+                  · add more detail to reach 100%
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <Separator className="my-6" />
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => navigate({ name: "business", slug: business.slug })}
+            className="bg-ink text-cream hover:bg-ink/90"
+          >
+            View public profile <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={handleEditClick}>
+            <Pencil className="mr-1.5 h-4 w-4" /> Edit details
+          </Button>
+          {!isVerified && !isPending && (
+            <Button
+              variant="outline"
+              onClick={() => setShowVerifyForm((v) => !v)}
+              className="border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+            >
+              <ShieldCheck className="mr-1.5 h-4 w-4" /> Submit for verification
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Verification inline form */}
+      {showVerifyForm && !isVerified && !isPending && (
+        <div className="rounded-2xl border border-sage/30 bg-sage/5 p-6 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-display text-xl tracking-tight text-ink">Request verification</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choose the verification type you want to submit. We'll review within 2 business days.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowVerifyForm(false)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+              aria-label="Close form"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleVerifySubmit} className="mt-5 space-y-5">
+            <div className="space-y-1.5">
+              <Label>Verification type</Label>
+              <Select value={verificationType} onValueChange={setVerificationType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {VERIFICATION_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="documentUrl">Document URL (optional)</Label>
+              <Input
+                id="documentUrl"
+                value={documentUrl}
+                onChange={(e) => setDocumentUrl(e.target.value)}
+                placeholder="File upload coming soon — paste a link for now"
+                inputMode="url"
+              />
+              <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <AlertCircle className="h-3 w-3" /> File uploads arrive shortly — paste a public link to your document for now.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Anything you'd like the reviewer to know — registration numbers, references, etc."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowVerifyForm(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting} className="bg-ink text-cream hover:bg-ink/90">
+                {submitting ? "Submitting…" : "Submit request"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main column */}
+        <div className="space-y-6 lg:col-span-2">
+          <StatusCard status={status} onVerifyClick={() => setShowVerifyForm(true)} />
+
+          {/* Services & products card */}
+          <div className="rounded-xl border border-border bg-card">
+            <div className="border-b border-border px-5 py-4">
+              <h2 className="font-display text-lg tracking-tight">Services & products</h2>
+              <p className="text-sm text-muted-foreground">What your business offers.</p>
+            </div>
+            <div className="space-y-5 p-5">
+              <div>
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <Briefcase className="h-3 w-3" /> Services
+                </div>
+                {(business.services ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No services listed yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(business.services ?? []).map((s) => (
+                      <Pill key={s.id}>{s.name}</Pill>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <Package className="h-3 w-3" /> Products
+                </div>
+                {(business.products ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No products listed yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(business.products ?? []).map((p) => (
+                      <Pill key={p.id} tone="sage">
+                        {p.name}
+                      </Pill>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <AlertCircle className="h-3 w-3" /> Editing services & products is coming soon.
+              </p>
+            </div>
+          </div>
+
+          {/* About */}
+          {business.description && (
+            <div className="rounded-xl border border-border bg-card">
+              <div className="border-b border-border px-5 py-4">
+                <h2 className="font-display text-lg tracking-tight">About</h2>
+              </div>
+              <div className="p-5">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+                  {business.description}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Side column */}
+        <div className="space-y-6">
+          {/* Trust signals */}
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="font-display text-lg tracking-tight">Trust signals</h2>
+            <ul className="mt-3 space-y-3 text-sm">
+              <li className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Verification
+                </span>
+                <span className="font-medium">{verificationLabel(status)}</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> B-BBEE level
+                </span>
+                <span className="font-medium">{business.bbbeeLevel ?? "—"}</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5" /> Profile completion
+                </span>
+                <span className="font-medium">{business.profileCompletion}%</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <Eye className="h-3.5 w-3.5" /> Profile views
+                </span>
+                <span className="font-medium">{formatNumber(business.views)}</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Contact info */}
+          <ContactCard business={business} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusCard({
+  status,
+  onVerifyClick,
+}: {
+  status: VerificationStatus;
+  onVerifyClick: () => void;
+}) {
+  if (status === "VERIFIED") {
+    return (
+      <div className="rounded-xl border border-sage/30 bg-sage/10 p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage/20 text-sage">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-lg tracking-tight text-ink">Verified</h3>
+              <VerifiedBadge status="VERIFIED" size="md" />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This business carries the BlakNet verified badge on its public profile — a signal of trust for buyers and partners.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "PENDING") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-lg tracking-tight text-ink">Verification in review</h3>
+              <VerifiedBadge status="PENDING" size="md" />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your verification request is being reviewed. We typically respond within 2 business days.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "REJECTED") {
+    return (
+      <div className="rounded-xl border border-destructive/25 bg-destructive/5 p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-display text-lg tracking-tight text-ink">Verification rejected</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your last request was rejected. You can submit a new request with updated documents below.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onVerifyClick}
+              className="mt-3 border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+            >
+              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Submit again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // NOT_VERIFIED
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink/5 text-foreground/60">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-display text-lg tracking-tight text-ink">Not verified yet</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Submit your CIPC, B-BBEE, tax or industry certification to earn the verified badge and unlock priority placement in the directory.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onVerifyClick}
+            className="mt-3 border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+          >
+            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Request verification
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactCard({ business }: { business: Business }) {
+  const rows: Array<{
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    value: string | null;
+    href?: string;
+  }> = [
+    { icon: Globe, label: "Website", value: business.website, href: business.website ?? undefined },
+    { icon: Mail, label: "Email", value: business.email, href: business.email ? `mailto:${business.email}` : undefined },
+    { icon: Phone, label: "Phone", value: business.phone, href: business.phone ? `tel:${business.phone.replace(/\s/g, "")}` : undefined },
+    {
+      icon: MessageCircle,
+      label: "WhatsApp",
+      value: business.whatsapp,
+      href: business.whatsapp ? `https://wa.me/${business.whatsapp.replace(/\D/g, "")}` : undefined,
+    },
+    { icon: MapPin, label: "Address", value: business.address },
+  ];
+
+  const visible = rows.filter((r) => r.value);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h2 className="font-display text-lg tracking-tight">Contact</h2>
+      {visible.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          No contact details yet. Add them from the new business flow soon — editing is coming.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-3 text-sm">
+          {visible.map((r) => (
+            <li key={r.label} className="flex items-start gap-2.5">
+              <r.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {r.label}
+                </p>
+                {r.href ? (
+                  <a
+                    href={r.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-words text-sm text-ink hover:underline"
+                  >
+                    {r.value}
+                  </a>
+                ) : (
+                  <p className="break-words text-sm text-ink">{r.value}</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

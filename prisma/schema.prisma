@@ -1,0 +1,343 @@
+// BlakNet Prisma schema
+// Adapted from the BlakNet spec (Supabase/PostgreSQL) to Prisma + SQLite.
+// SQLite notes: no native arrays/enums — use String + a separate join table for tags.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  firstName    String?
+  lastName    String?
+  role         String   @default("USER") // USER | BUSINESS_OWNER | ADMIN | SUPER_ADMIN
+  plan         String   @default("STARTER") // STARTER | VERIFIED | INTELLIGENCE
+  profileImage String?
+  phone        String?
+  bio          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions         Session[]
+  profile          Profile?
+  businesses       Business[]      @relation("OwnedBusinesses")
+  posts            Post[]
+  postLikes        PostLike[]
+  comments         Comment[]
+  contacts         Contact[]
+  events           Event[]         @relation("OrganizedEvents")
+  eventAttendees   EventAttendee[]
+  reviews          BusinessReview[] @relation("AuthoredReviews")
+  notifications    Notification[]
+  subscription     Subscription?
+  verificationReq  VerificationRequest[]
+  businessMembers  BusinessMember[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline  String?
+  location  String?
+  website   String?
+  linkedin String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Industry {
+  id            String           @id @default(cuid())
+  name          String
+  slug          String           @unique
+  icon          String?
+  businesses    Business[]
+  subIndustries SubIndustry[]
+}
+
+model SubIndustry {
+  id         String   @id @default(cuid())
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  name       String
+  slug       String
+
+  @@index([industryId])
+}
+
+model Business {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  owner              User     @relation("OwnedBusinesses", fields: [ownerId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String   @unique
+  tagline            String?
+  description        String?
+  industryId        String?
+  industry           Industry? @relation(fields: [industryId], references: [id])
+  province           String?
+  city               String?
+  address            String?
+  website            String?
+  email              String?
+  phone              String?
+  whatsapp          String?
+  businessSize       String? // micro | small | medium | large
+  yearFounded        Int?
+  employeeCount      String?
+  annualRevenue      String?
+  cipcNumber         String?
+  bbbeeLevel         String? // Level 1..8 or Non-Compliant
+  logoUrl            String?
+  coverUrl           String?
+  verificationStatus String   @default("NOT_VERIFIED") // NOT_VERIFIED | PENDING | VERIFIED | REJECTED
+  featured           Boolean  @default(false)
+  views              Int      @default(0)
+  profileCompletion  Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  services      BusinessService[]
+  products      BusinessProduct[]
+  reviews       BusinessReview[]
+  posts         Post[]
+  events        Event[]
+  members       BusinessMember[]
+  verifications VerificationRequest[]
+
+  @@index([ownerId])
+  @@index([industryId])
+  @@index([province])
+}
+
+model BusinessMember {
+  id          String  @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("OWNER") // OWNER | MANAGER | STAFF
+  createdAt    DateTime @default(now())
+
+  @@unique([businessId, userId])
+}
+
+model BusinessService {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+
+  @@index([businessId])
+}
+
+model BusinessProduct {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+
+  @@index([businessId])
+}
+
+model BusinessReview {
+  id                 String   @id @default(cuid())
+  businessId        String
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  reviewerId        String?
+  reviewer          User?     @relation("AuthoredReviews", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerName      String
+  reviewerCompany   String?
+  rating            Int // 1..5
+  review            String
+  verificationStatus String   @default("APPROVED") // PENDING | APPROVED | REJECTED
+  createdAt          DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  content    String
+  imageUrl   String?
+  postType   String   @default("text") // text | image | announcement | event | opportunity | article
+  title      String?
+  link       String?
+  pinned     Boolean  @default(false)
+  views      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  likes    PostLike[]
+  comments Comment[]
+
+  @@index([authorId])
+  @@index([businessId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  organizerId     String
+  organizer       User     @relation("OrganizedEvents", fields: [organizerId], references: [id], onDelete: Cascade)
+  businessId      String?
+  business        Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title           String
+  slug            String   @unique
+  description     String
+  imageUrl        String?
+  category        String // networking | workshop | seminar | conference | training | webinar | funding | competition | learnership | meetup
+  startDate       DateTime
+  endDate         DateTime?
+  location        String?
+  isOnline        Boolean  @default(false)
+  onlineUrl       String?
+  registrationUrl String?
+  capacity        Int?
+  createdAt       DateTime @default(now())
+
+  attendees EventAttendee[]
+
+  @@index([category])
+  @@index([startDate])
+}
+
+model EventAttendee {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String   @default("REGISTERED") // REGISTERED | INTERESTED | ATTENDED
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  company   String?
+  position  String?
+  email     String?
+  phone     String?
+  website   String?
+  notes     String?
+  category  String   @default("Other") // Client | Supplier | Partner | Investor | Prospect | Entrepreneur | Procurement | Professional | Other
+  tags      String?  // comma separated for MVP
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Resource {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  description  String
+  content      String
+  category     String // starting | compliance | bbbee | finance | marketing | sales | operations | hr | legal | procurement | funding | strategy | technology
+  resourceType String // article | guide | template | checklist | video | workshop
+  imageUrl     String?
+  author       String?
+  readMinutes  Int?
+  featured     Boolean  @default(false)
+  published    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([category])
+  @@index([resourceType])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // verification | review | connection | event | comment | post | subscription | enquiry | announcement
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                 String   @default("STARTER")
+  status               String   @default("FREE") // FREE | ACTIVE | PAST_DUE | CANCELLED | EXPIRED
+  provider             String?  // yoco | manual
+  providerSubscriptionId String?
+  startDate            DateTime?
+  endDate              DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model VerificationRequest {
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verificationType String // cipc | bbbee | tax | certification
+  documentUrl    String?
+  notes          String?
+  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED | INFO_REQUESTED
+  adminNotes     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([businessId])
+  @@index([status])
+}
