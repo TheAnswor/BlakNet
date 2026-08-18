@@ -51,6 +51,11 @@ function parseHash(hash: string): Route {
       return { name: "dashboard" };
     case "admin":
       if (b === "verification") return { name: "admin-verification" };
+      if (b === "users") return { name: "admin-users" };
+      if (b === "businesses") return { name: "admin-businesses" };
+      if (b === "reviews") return { name: "admin-reviews" };
+      if (b === "subscriptions") return { name: "admin-subscriptions" };
+      if (b === "industries") return { name: "admin-industries" };
       return { name: "admin" };
     default:
       return { name: "home" };

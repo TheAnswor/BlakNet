@@ -200,4 +200,9 @@ export type Route =
   | { name: "dashboard-settings" }
   | { name: "dashboard-help" }
   | { name: "admin" }
-  | { name: "admin-verification" };
+  | { name: "admin-verification" }
+  | { name: "admin-users" }
+  | { name: "admin-businesses" }
+  | { name: "admin-reviews" }
+  | { name: "admin-subscriptions" }
+  | { name: "admin-industries" };

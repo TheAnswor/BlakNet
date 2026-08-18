@@ -29,6 +29,11 @@ import { SettingsView } from "@/views/dashboard/settings";
 import { HelpView } from "@/views/dashboard/help";
 import { AdminOverviewView } from "@/views/admin/overview";
 import { AdminVerificationView } from "@/views/admin/verification";
+import { AdminUsersView } from "@/views/admin/users";
+import { AdminBusinessesView } from "@/views/admin/businesses";
+import { AdminReviewsView } from "@/views/admin/reviews";
+import { AdminSubscriptionsView } from "@/views/admin/subscriptions";
+import { AdminIndustriesView } from "@/views/admin/industries";
 import { ComingSoon } from "@/views/public/coming-soon";
 
 // Routes that show the public header + footer (marketing surface)
@@ -125,6 +130,11 @@ export default function Page() {
       <AdminShell>
         {route.name === "admin" && <AdminOverviewView />}
         {route.name === "admin-verification" && <AdminVerificationView />}
+        {route.name === "admin-users" && <AdminUsersView />}
+        {route.name === "admin-businesses" && <AdminBusinessesView />}
+        {route.name === "admin-reviews" && <AdminReviewsView />}
+        {route.name === "admin-subscriptions" && <AdminSubscriptionsView />}
+        {route.name === "admin-industries" && <AdminIndustriesView />}
       </AdminShell>
     );
   }

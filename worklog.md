@@ -725,3 +725,125 @@ BlakNet was stable and polished across home/directory/business-profile/newsfeed/
 3. **Business image uploads** — extend the data-uri avatar pattern to business logos/covers.
 4. **Admin views expansion** — the admin console currently only has overview + verification; spec calls for Users, Businesses, Industries, Events, Newsfeed, Resources, Reviews, Subscriptions, Reports, Settings management pages.
 5. **Hover-lift sweep** — ensure all clickable card wrappers have `card-lift` for consistent tactile feedback.
+
+---
+Task ID: ADMIN-VIEWS
+Agent: general-purpose (Z.ai Code sub-agent)
+Task: Build 5 admin management views (Users, Businesses, Reviews, Subscriptions, Industries).
+
+Work Log:
+- Read prior worklog + AdminShell (src/components/admin/shell.tsx) + existing AdminOverviewView & AdminVerificationView (style/pattern reference), lib/{store,api,types,format,utils}, components/blaknet/{badges,section}, ui/{button,input,skeleton,select,switch,tabs,avatar,badge}, hooks/use-toast, app/page.tsx (router wiring), and all 5 admin API routes (admin/users, admin/businesses, admin/reviews, admin/subscriptions, admin/industries) to verify exact response shapes (including `qs({q,role,page,pageSize})`, `qs({status,page})`, summary `{byPlan,byStatus}`, etc.). Confirmed dev server healthy + admin login works (admin@blaknet.co.za).
+- Created 5 view files, all `"use client"` + TypeScript strict (no `any`), each following the LoadState discriminated-union pattern (`loading | forbidden (403) | error | ready`) used by overview.tsx/verification.tsx with cancelled-flag `useEffect` + `reloadKey` for retries:
+  1. `src/views/admin/users.tsx` → `AdminUsersView`:
+     * Header "Users" + subtitle "Manage BlakNet members, roles and plans." with sage "Members" Pill.
+     * Search input (debounced 300ms → `filters.q`) + role Select (All / USER / BUSINESS_OWNER / ADMIN / SUPER_ADMIN) + result count "Showing X–Y of N users".
+     * Responsive: hidden sm+ table with columns (User, Role, Plan, Businesses, Joined) + mobile cards. Each row: Avatar (initials `bg-ink text-cream`), name+email, role Pill (sage for ADMIN, ink for SUPER_ADMIN, cream for BUSINESS_OWNER, neutral for USER), plan Pill (sage VERIFIED, ink INTELLIGENCE, neutral STARTER), businessCount with Building2 icon, formatDate(createdAt).
+     * Pagination Prev/Next + "Page X of Y" (PAGE_SIZE=20). Staggered `animate-fade-in-up` (40ms × index) on rows.
+     * Loading skeleton (header + filter bar + 6 pulse rows), empty EmptyState (Users, "No users found."), 403 EmptyState (ShieldCheck + Back-to-dashboard), error EmptyState (AlertCircle + Try again bumps reloadKey).
+  2. `src/views/admin/businesses.tsx` → `AdminBusinessesView`:
+     * Header "Businesses" + subtitle + sage "Directory" Pill.
+     * Search (debounced) + verification Select (All/VERIFIED/PENDING/NOT_VERIFIED/REJECTED) + featured Select (All/Featured only/Not featured) + result count.
+     * Each row (card): logo (img or initial tile), name (clickable → `navigate({name:"business",slug})` with ArrowRight hover animation), tagline, industry Pill, VerifiedBadge, Featured Pill (Sparkles), location MapPin, owner email+name, reviewCount (Star), followerCount (Users), views (Eye), createdAt. Staggered fade-in-up.
+     * **Featured toggle**: Switch on each row PATCHes `/api/admin/businesses` with `{id, featured: !current}` — optimistic update + revert on failure + toast "Featured"/"Unfeatured". `togglingId` state for disabled state + Loader2 spin in toggling row.
+     * **Verification override**: Select on each row (VERIFIED/NOT_VERIFIED/REJECTED) PATCHes with `{id, verificationStatus}` — optimistic + revert + toast "Verification updated". `verifyChangingId` state + Loader2 spinner.
+     * Pagination. Skeleton. Empty state. Forbidden/error EmptyStates.
+  3. `src/views/admin/reviews.tsx` → `AdminReviewsView`:
+     * Header "Reviews" + subtitle + sage "Moderation" Pill.
+     * Tabs (Pending/Approved/Rejected) — default Pending. Switching tab resets page + sets loading + fetches `/api/admin/reviews?status=X&page=Y`.
+     * Each review card: business name (clickable → profile, ArrowRight hover), reviewerName + reviewerCompany, star rating (`<Stars>` helper rendering 5 lucide Star icons filled sage vs muted), review text (whitespace-pre-wrap), timeAgo + formatDate.
+     * **Actions** (only when status===PENDING): "Approve" (sage bg, ink text, CheckCircle2) + "Reject" (destructive outline, XCircle) → PATCH `/api/admin/reviews` `{id, status}`. Optimistic removal from list (filter out + total-1) + toast on success; revert on failure (re-insert + total+1). `actioningId` for loading state (Loader2).
+     * For APPROVED/REJECTED tabs: only show a status Pill (no actions).
+     * Empty states per tab: Pending → "No reviews awaiting moderation.", Approved → "No approved reviews.", Rejected → "No rejected reviews." (using local `emptyByStatus` map).
+     * Pagination. Skeleton. Forbidden/error EmptyStates.
+  4. `src/views/admin/subscriptions.tsx` → `AdminSubscriptionsView`:
+     * Header "Subscriptions" + subtitle + sage "Revenue" Pill.
+     * **3 summary cards** in `grid gap-4 sm:grid-cols-3`: Total active (CreditCard, ink tile — sum of byStatus.ACTIVE + byStatus.PAST_DUE), Verified plan (Crown, sage tile — byPlan.VERIFIED), Intelligence plan (TrendingUp, ink tile — byPlan.INTELLIGENCE). Each: icon tile, big font-display number (formatNumber), label, muted subtitle, animate-fade-in-up stagger.
+     * Status filter Select (All/ACTIVE/FREE/PAST_DUE/CANCELLED/EXPIRED) + result count.
+     * Responsive table (sm+) with columns (User, Plan, Status, Provider, Started, Renews) + mobile cards. Each row: Avatar (initials ink/cream), name+email, plan Pill (sage VERIFIED, ink INTELLIGENCE, neutral STARTER), status Pill (sage ACTIVE, cream PAST_DUE, neutral others), provider (font-mono or "—"), startDate (formatDate or "—"), endDate (formatDate or "—").
+     * Read-only (no actions per MVP spec). Pagination. Skeleton. Empty state. Forbidden/error EmptyStates.
+  5. `src/views/admin/industries.tsx` → `AdminIndustriesView`:
+     * Header "Industries" + subtitle + sage "Categories" Pill. Right-side stats strip card: Building2 + total businesses (sum of businessCount across industries) + "businesses" label.
+     * Summary row: industries count + sub-industries count + italic "Editing industries is coming soon." note.
+     * `grid gap-4 sm:grid-cols-2 lg:grid-cols-3` of industry cards: name (font-display), slug (muted), big businessCount (font-display 3xl) + "businesses" label, sub-industries as Pills (neutral tone) — or "No sub-industries." italic note when empty. Read-only (no add/edit/delete — "coming soon" notice per spec).
+     * Skeleton (9 pulse cards), empty EmptyState (Sparkles, "No industries yet."), forbidden/error EmptyStates.
+- Wired all 5 views into `src/app/page.tsx`: added 5 imports + 5 explicit route branches inside `<AdminShell>` block (admin-users/businesses/reviews/subscriptions/industries). Preserved all other route logic (overview, verification) and authed-redirect effect untouched.
+- Lint result: `bun run lint` → **0 errors, 0 warnings** across the whole project (my 5 new view files + page.tsx edit contribute no new errors or warnings; pre-existing warnings already eliminated by prior agent lint-fix).
+- TypeScript: `bunx tsc --noEmit` → 0 errors in my files (pre-existing errors only in examples/, skills/, next.config.ts, and an unrelated src/app/api/businesses/[slug]/route.ts which references a non-existent `_count.follows`).
+- API smoke test: logged in as admin@blaknet.co.za → all 5 admin endpoints return 200 with correct shapes:
+  * `/api/admin/users?pageSize=3` → `{total:13,page:1,pages:2,items:[{id,email,firstName,lastName,role,plan,phone,createdAt,businessCount}]}` ✓
+  * `/api/admin/businesses?pageSize=2` → `{total:13,page:1,pages:2,items:[{id,name,slug,tagline,industry:{...},province,city,logoUrl,verificationStatus,featured,views,createdAt,owner:{...},reviewCount,followerCount}]}` ✓
+  * `/api/admin/reviews?status=PENDING&pageSize=3` → `{total:0,items:[]}` ✓ (no pending reviews seeded)
+  * `/api/admin/subscriptions?pageSize=2` → `{total:1,pages:1,summary:{byPlan:{VERIFIED:1},byStatus:{ACTIVE:1}},items:[{id,plan,status,provider,startDate,endDate,createdAt,user:{...}}]}` ✓
+  * `/api/admin/industries` → `{items:[{id,name,slug,icon,businessCount,subIndustries:[{id,name,slug}]}]}` ✓ (12 industries with sub-industries)
+- Dev server confirmation: dev.log shows multiple `✓ Compiled in Nms` lines after file additions + wiring, no compile/runtime errors in my views. `GET / 200` after admin cookie.
+
+Stage Summary:
+- All 5 admin management views are built, lint-clean, type-clean, and wired into the hash router via `src/app/page.tsx`. Each view reuses the BlakNet brand system (ink/cream/sage, font-display, Pill, VerifiedBadge, EmptyState, animate-fade-in-up), the api client with `qs()` query builder, the hash router (navigate), useToast for feedback, and shadcn/ui primitives (Button, Input, Skeleton, Avatar, Select, Switch, Tabs, Badge). Every view handles loading (Skeleton), empty (EmptyState), forbidden (403 → EmptyState ShieldCheck + Back-to-dashboard), and error (EmptyState AlertCircle + Try again) states. Optimistic updates with revert-on-failure + toasts are implemented for business featured toggles, verification overrides, and review approve/reject actions. Staggered fade-in-up animations applied across rows/cards. Read-only views (Industries, Subscriptions) clearly mark "coming soon" for future write capabilities per MVP scope.
+- Admin sidebar NAV already includes all 5 routes (Overview / Verification / Users / Businesses / Reviews / Subscriptions / Industries) — all 7 admin sections now resolve to real content. Only Events/Newsfeed/Resources/Reports/Settings remain as "Soon" placeholders per the COMING_SOON list in the shell.
+- Next: Phase 3 Yoco subscription activation webhook (still the top functional gap per prior worklog), and image uploads for business logos + post images.
+
+---
+Task ID: CRON-QA-4
+Agent: Z.ai Code (main) — web dev review cron round 4
+Task: Assess status, QA, expand admin console with 5 management views (Users, Businesses, Reviews, Subscriptions, Industries).
+
+## Current Project Status Assessment
+BlakNet was stable and fully polished across all public + dashboard views (8-9/10 VLM), with all "coming soon" stubs closed (profile editing, business editing, password change, follow). The biggest remaining functional gap was the **admin console** — only Overview + Verification existed; the spec calls for Users, Businesses, Industries, Events, Newsfeed, Resources, Reviews, Subscriptions, Reports, Settings management. This round focused on expanding the admin console.
+
+## QA Performed
+- Verified dev server healthy, all existing APIs 200.
+- Confirmed demo user correctly blocked from admin (403 → "Admin access required").
+- Logged in as admin, verified admin overview renders with all stat cards.
+- Identified admin nav had 10 items marked "SOON" — the core gap.
+
+## Completed Modifications
+
+### Admin Console Expansion — 5 new management views + 5 new API endpoints
+
+**New API endpoints** (all admin-guarded with `requireAdmin()` helper):
+1. `GET /api/admin/users` — paginated user list with search (q) + role filter, includes businessCount per user.
+2. `GET /api/admin/businesses` — paginated business list with search + verification + featured filters, includes owner + review/follower counts.
+3. `PATCH /api/admin/businesses` — update a business (featured toggle, verification override).
+4. `GET /api/admin/reviews` — paginated review list filtered by status (PENDING/APPROVED/REJECTED), includes business info.
+5. `PATCH /api/admin/reviews` — approve/reject a review.
+6. `GET /api/admin/subscriptions` — paginated subscription list + summary (byPlan, byStatus counts) + user info.
+7. `GET /api/admin/industries` — industries with businessCount + sub-industries.
+- Created `src/lib/admin-guard.ts` (`requireAdmin()` helper) to DRY the admin auth check.
+
+**New admin views** (via subagent ADMIN-VIEWS):
+1. **AdminUsersView** — search + role filter Select, responsive table with avatar initials, name/email, role pill (sage for ADMIN), plan pill, businessCount, createdAt, pagination.
+2. **AdminBusinessesView** — search + verification + featured filters, business rows with logo/name (clickable → public profile), owner, review/follower/view counts, **featured Switch toggle** (optimistic PATCH), **verification Select override** (PATCH), pagination.
+3. **AdminReviewsView** — Pending/Approved/Rejected Tabs, star ratings, business name (clickable), Approve (sage) / Reject (destructive) buttons with optimistic removal + revert, per-tab empty states.
+4. **AdminSubscriptionsView** — 3 summary cards (Total active, Verified plan, Intelligence plan from `summary.byPlan/byStatus`), status filter, subscription rows with user avatar, plan pill (sage/ink/neutral by tier), status badge, provider, dates.
+5. **AdminIndustriesView** — read-only grid of industry cards (font-display name, slug, businessCount, sub-industries as pills).
+
+**Wiring**:
+- Added 5 new routes to `Route` type (`admin-users`, `admin-businesses`, `admin-reviews`, `admin-subscriptions`, `admin-industries`).
+- Added 5 route parsers to `store.ts` `parseHash`.
+- Updated `AdminShell` NAV: moved Users, Businesses, Reviews, Subscriptions, Industries from "Coming soon" to active nav items (7 active + 5 still coming soon: Events, Newsfeed, Resources, Reports, Settings).
+- Wired 5 route branches into `page.tsx` `<AdminShell>`.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy, all APIs 200.
+- Functional tests (agent-browser as admin):
+  - Admin Users: shows 13 users with search + role filter ✓.
+  - Admin Businesses: shows 13 businesses, featured Switch toggle works (PATCH → optimistic update → toast) ✓.
+  - Admin Reviews: renders with Pending/Approved/Rejected tabs ✓.
+  - Admin Subscriptions: renders with 3 summary cards + subscription rows ✓.
+  - Admin Industries: renders industry grid ✓.
+- VLM rating: Admin Businesses 8/10.
+- Admin sidebar now has 7 active nav items (was 2).
+
+## Unresolved Issues / Risks
+- **Admin Events/Newsfeed/Resources/Reports/Settings** still "coming soon" (5 items) — lower priority since the public versions exist and are read-only from admin perspective.
+- **Avatar storage**: still data-uri in DB (fine for MVP).
+- **Notification preferences**: toggles still cosmetic.
+- **Minor VLM item**: admin businesses pagination buttons could be more visible; empty-state design could be richer.
+
+## Priority Recommendations for Next Phase
+1. **Yoco subscription checkout** (Phase 3 revenue path) — still the top functional gap.
+2. **Business image uploads** — extend the data-uri avatar pattern to business logos/covers.
+3. **Admin Events/Newsfeed/Resources management** — complete the remaining 5 admin views.
+4. **Admin user detail / impersonation** — view a user's businesses, contacts, activity.
+5. **Analytics dashboard** — the Intelligence plan promises live performance dashboards; scaffold the architecture.

@@ -25,6 +25,7 @@ import {
   Menu,
   LogOut,
   ArrowRight,
+  Star,
 } from "lucide-react";
 
 interface NavItem {
@@ -37,6 +38,11 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, route: { name: "admin" }, match: ["admin"] },
   { label: "Verification", icon: Shield, route: { name: "admin-verification" }, match: ["admin-verification"] },
+  { label: "Users", icon: Users, route: { name: "admin-users" }, match: ["admin-users"] },
+  { label: "Businesses", icon: Building2, route: { name: "admin-businesses" }, match: ["admin-businesses"] },
+  { label: "Reviews", icon: Star, route: { name: "admin-reviews" }, match: ["admin-reviews"] },
+  { label: "Subscriptions", icon: CreditCard, route: { name: "admin-subscriptions" }, match: ["admin-subscriptions"] },
+  { label: "Industries", icon: Sparkles, route: { name: "admin-industries" }, match: ["admin-industries"] },
 ];
 
 interface SoonItem {
@@ -45,14 +51,9 @@ interface SoonItem {
 }
 
 const COMING_SOON: SoonItem[] = [
-  { label: "Users", icon: Users },
-  { label: "Businesses", icon: Building2 },
-  { label: "Industries", icon: Sparkles },
   { label: "Events", icon: Calendar },
   { label: "Newsfeed", icon: Newspaper },
   { label: "Resources", icon: FileCheck },
-  { label: "Reviews", icon: CheckCircle2 },
-  { label: "Subscriptions", icon: CreditCard },
   { label: "Reports", icon: TrendingUp },
   { label: "Settings", icon: Clock },
 ];
@@ -60,7 +61,6 @@ const COMING_SOON: SoonItem[] = [
 function currentLabel(name: string) {
   const item = NAV.find((n) => n.match.includes(name));
   if (item) return item.label.toLowerCase();
-  if (name === "admin-verification") return "verification queue";
   return name.replace(/^admin-/, "").replace(/-/g, " ");
 }
 
