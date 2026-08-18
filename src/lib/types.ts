@@ -119,6 +119,8 @@ export interface BlakEvent {
   onlineUrl: string | null;
   registrationUrl: string | null;
   capacity: number | null;
+  organizer?: { id: string; firstName: string | null; lastName: string | null };
+  business?: { id: string; name: string; slug: string; logoUrl: string | null } | null;
   _count?: { attendees: number };
   registered?: boolean;
 }
@@ -194,6 +196,7 @@ export type Route =
   | { name: "dashboard-following" }
   | { name: "dashboard-newsfeed" }
   | { name: "dashboard-events" }
+  | { name: "dashboard-event-new" }
   | { name: "dashboard-resources" }
   | { name: "dashboard-notifications" }
   | { name: "dashboard-plan" }

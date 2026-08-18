@@ -74,7 +74,7 @@ function EventCard({ event }: { event: BlakEvent }) {
     <button
       type="button"
       onClick={() => navigate({ name: "event", slug: event.slug })}
-      className="card-lift group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:border-foreground/25 hover:shadow-lg"
+      className="card-lift group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm hover:border-foreground/25 hover:shadow-lg"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-grain">
         {event.imageUrl && isSvgDataUri(event.imageUrl) ? (
@@ -110,7 +110,7 @@ function EventCard({ event }: { event: BlakEvent }) {
         <h3 className="mt-2 line-clamp-2 font-medium text-base leading-snug tracking-tight">
           {event.title}
         </h3>
-        <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{event.description}</p>
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{event.description}</p>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3 text-xs text-foreground/70">
           <span className="inline-flex items-center gap-1.5">

@@ -21,6 +21,8 @@ import { OverviewView } from "@/views/dashboard/overview";
 import { MyBusinessesView } from "@/views/dashboard/businesses";
 import { NewBusinessView } from "@/views/dashboard/business-new";
 import { BusinessDetailView } from "@/views/dashboard/business-detail";
+import { DashboardEventsView } from "@/views/dashboard/events";
+import { NewEventView } from "@/views/dashboard/event-new";
 import { NetworkView } from "@/views/dashboard/network";
 import { FollowingView } from "@/views/dashboard/following";
 import { NotificationsView } from "@/views/dashboard/notifications";
@@ -107,7 +109,8 @@ export default function Page() {
         {route.name === "dashboard-settings" && <SettingsView />}
         {route.name === "dashboard-help" && <HelpView />}
         {route.name === "dashboard-newsfeed" && <NewsfeedView />}
-        {route.name === "dashboard-events" && <EventsView />}
+        {route.name === "dashboard-events" && <DashboardEventsView />}
+        {route.name === "dashboard-event-new" && <NewEventView />}
         {route.name === "dashboard-resources" && <ResourcesView />}
         {![
           "dashboard",
@@ -122,6 +125,7 @@ export default function Page() {
           "dashboard-help",
           "dashboard-newsfeed",
           "dashboard-events",
+          "dashboard-event-new",
           "dashboard-resources",
         ].includes(route.name) && <ComingSoon route={route} />}
       </DashboardShell>

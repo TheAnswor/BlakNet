@@ -42,7 +42,10 @@ function parseHash(hash: string): Route {
       if (b === "network") return { name: "dashboard-network" };
       if (b === "following") return { name: "dashboard-following" };
       if (b === "newsfeed") return { name: "dashboard-newsfeed" };
-      if (b === "events") return { name: "dashboard-events" };
+      if (b === "events") {
+        if (c === "new") return { name: "dashboard-event-new" };
+        return { name: "dashboard-events" };
+      }
       if (b === "resources") return { name: "dashboard-resources" };
       if (b === "notifications") return { name: "dashboard-notifications" };
       if (b === "plan") return { name: "dashboard-plan" };

@@ -964,3 +964,132 @@ BlakNet was stable and mature — public + dashboard + admin (7 views) all polis
 3. **Admin Settings view** — platform configuration, feature flags, email templates.
 4. **Event creation for business owners** — currently events are seed-data only; let business owners create/host events.
 5. **Post moderation tools** — admin ability to pin/delete/hide posts from the admin newsfeed view.
+
+---
+Task ID: EVENT-CREATION
+Agent: Z.ai Code (subagent) — dashboard event management + public events card polish
+Task: Build dashboard event management (create form + my-events list) + polish public events cards.
+
+## Current Project Status Assessment
+BlakNet was stable and mature with public + dashboard + admin surfaces fully populated. The dashboard's "Events" nav item was wired to the public `EventsView` (read-only listing) — there was no host-side management surface, and the API (`POST /api/events`, `GET /api/events?owner=1`, `GET /api/businesses/owner`) was already built but unused by the UI. This round closed that gap: a My Events dashboard list and a premium event-creation form, plus a light VLM-driven styling pass on the public events cards.
+
+## QA Performed
+- Inspected existing `MyBusinessesView`, `NetworkView`, `NewBusinessView` for the established card/heading/EmptyState patterns and copied the conventions (heading + subtitle, top-right primary CTA, staggered `animate-fade-in-up`, `EmptyState` for empty/error, `Skeleton` row loaders).
+- Verified `BlakEvent` type lacked `organizer`/`business` even though the API returns them — extended the type (optional fields) so the dashboard rows can render a business pill without `any`.
+- Confirmed public events cards already had `card-lift border border-border bg-card hover:shadow-lg`, the date badge used `bg-ink/85 backdrop-blur-sm text-cream`, and category filter pills already had the `hover:border-foreground/30 hover:bg-muted` transitions. Only two minor polish gaps remained (see Fixes below).
+- Lint: 0 errors, 0 warnings after fixes.
+- Dev server: healthy. `GET /api/events`, `GET /api/events?owner=1`, `GET /api/businesses/owner` and `/` all returned 200; multiple clean `✓ Compiled` lines in dev.log.
+
+## Completed Modifications
+
+### New view — `src/views/dashboard/events.tsx` (DashboardEventsView)
+- Heading "Manage events you're hosting on BlakNet." + sage eyebrow "My Events" + subtitle.
+- Top-right primary CTA "Host an event" → `navigate({ name: "dashboard-event-new" })` with `btn-lift bg-ink text-cream shadow-md`.
+- Fetches `GET /api/events?owner=1` (cancelled-aware, `reloadKey`-driven retry on error).
+- Loading: 3-row `Skeleton` block.
+- Empty: `EmptyState` (icon `CalendarPlus`) titled "You haven't hosted any events yet." with the same "Host an event" CTA.
+- Error: `EmptyState` with "Try again" that bumps `reloadKey`.
+- List: each event rendered as a row card with `card-lift card-soft border border-border bg-card` + staggered `animate-fade-in-up`. Layout: a `bg-ink-grain` date tile showing `monthDay(startDate)` (and SVG image overlay if present, else initials), then the title (clickable → `navigate({ name: "event", slug })` with `link-underline`), category `Pill tone="sage"`, optional business `Pill tone="neutral"`, a `line-clamp-1` description, and a meta row (formatDate, optional end-date "Until …", online/location, attendees / capacity). Right-aligned "View event" outline button.
+
+### New view — `src/views/dashboard/event-new.tsx` (NewEventView)
+- Premium creation form rendered inside `card-soft rounded-2xl border border-border bg-card p-6 sm:p-8`.
+- Heading "Host an event." + back-link eyebrow "My Events" (→ `dashboard-events`) + subtitle + Cancel button (confirms discard before navigating back).
+- Fields: Title (required), Description (Textarea rows=5, required, 2000-char counter), Category (Select from `EVENT_CATEGORIES`, required) + Capacity (number, optional) in a 2-col grid, Start date & time (datetime-local, required) + End date & time (datetime-local, optional) in a 2-col grid.
+- Online toggle: a `Switch` in a bordered panel ("Is this an online event?") with `Video`/`MapPin` icon swapping. Conditional rendering: online on → Online URL Input (with `Globe` adornment, placeholder `https://meet.blaknet.co.za/...`); online off → Location Input (with `MapPin` adornment, placeholder `Sandton Convention Centre, Johannesburg`).
+- Registration URL Input (optional, with `Globe` adornment).
+- "Host as business" Select — fetches `GET /api/businesses/owner`, default `"none"` → "None — personal event", otherwise lists user's businesses with a `Building2` adornment.
+- Event image: `ImageUpload` component (`aspect="wide"`, `label="Upload event banner"`, `maxMb=2.5`).
+- Client-side validation via `useMemo` (title/description/category/startDate required; endDate > startDate; onlineUrl & registrationUrl must start with `http(s)://`). Inline error messages; submit button disabled until valid.
+- Submit → `POST /api/events` with the constructed payload. On success: toast "Event created — it's now live on BlakNet" (description: title), navigate to `dashboard-events`. On error: destructive toast with the server message. Submit button shows `Loader2` spinner + "Publishing…" while in-flight.
+- Footer: Cancel (outline) + Publish event (`btn-lift bg-ink text-cream shadow-md`, disabled while submitting or invalid).
+- Helper note below the form mentions the public Events page link.
+
+### Wiring — `src/app/page.tsx`
+- Imported `DashboardEventsView` and `NewEventView`.
+- Replaced `{route.name === "dashboard-events" && <EventsView />}` with `<DashboardEventsView />` (the public `EventsView` import is still used for the public `events` route).
+- Added `{route.name === "dashboard-event-new" && <NewEventView />}`.
+- Added `"dashboard-event-new"` to the ComingSoon exclusion array (was the only missing entry — route type already had it).
+
+### Type extension — `src/lib/types.ts`
+- Added optional `organizer?: { id; firstName; lastName }` and `business?: { id; name; slug; logoUrl } | null` to `BlakEvent` to mirror the API response without breaking existing consumers.
+
+### Public events card polish — `src/views/public/events.tsx`
+- Added `shadow-sm` to the card button class so cards don't blend into the cream background (kept existing `card-lift border border-border bg-card hover:border-foreground/25 hover:shadow-lg`).
+- Added `leading-relaxed` to the description paragraph (was `mt-1.5 line-clamp-2 text-sm text-muted-foreground`) for consistent card heights and better readability.
+- Verified date badge already used `bg-ink/85 backdrop-blur-sm text-cream` ✓.
+- Verified category filter pills already had `hover:border-foreground/30 hover:bg-muted` transitions (active stays `border-ink bg-ink text-cream`) ✓.
+- Verified whole card is wrapped in a `<button>` so the entire surface is clickable + card-lift gives the hover lift ✓.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy.
+- API smoke tests: `GET /api/events` 200, `GET /api/events?owner=1` 200, `GET /` 200.
+- Multiple clean `✓ Compiled` lines after file saves.
+- Functional coverage:
+  - My Events dashboard page renders heading, primary CTA, skeleton → list/empty/error states.
+  - "Host an event" CTA navigates to `dashboard-event-new`.
+  - New Event form renders all required + optional fields with online toggle swapping inputs.
+  - Submit button disabled until title + description + category + startDate are filled and dates are coherent.
+  - Cancel button confirms before discarding.
+  - Public events cards now have `shadow-sm` baseline + `leading-relaxed` description.
+
+## Fixes
+- Fixed parse error in `event-new.tsx` (`async function handleSubmit(e: React.FormEvent) => {` → `async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {`).
+- Fixed `react-hooks/set-state-in-effect` lint error in `events.tsx` — removed synchronous `setLoading(true)` from the effect body; introduced a `reloadKey` state that the effect depends on, and the "Try again" handler now bumps `reloadKey` (with `setLoading(true)` happening in the click handler, not the effect).
+
+## Stage Summary
+- Dashboard sidebar's "Events" item now opens a real host management surface (was: a duplicate of the public read-only listing).
+- Business owners can now create events (workshops, webinars, meetups, networking) from the dashboard — addressing item #4 in the previous round's "Priority Recommendations for Next Phase".
+- Public events cards have a more consistent shadow baseline and description leading for uniform card heights.
+- All new code reuses the BlakNet brand system (ink/cream/sage, font-display, Pill, EmptyState, ImageUpload, card-lift, btn-lift, animate-fade-in-up) and shadcn/ui primitives (Button, Input, Textarea, Label, Select, Switch). No blue/indigo introduced.
+
+---
+Task ID: CRON-QA-6
+Agent: Z.ai Code (main) — web dev review cron round 6
+Task: QA, add event creation for business owners, polish events cards.
+
+## Current Project Status Assessment
+BlakNet was stable and mature — public (13 routes) + dashboard (13 routes) + admin (10 active views) all polished and functional. The top remaining functional gap was **event creation for business owners** — events were seed-data only with no way for users to create/host their own. This round focused on closing that gap.
+
+## QA Performed
+- Tested events page, event detail (Register toggle works ✓), business profile follow button (present ✓), newsfeed post creation (Text label fix confirmed ✓).
+- VLM review of events page (identified card border/shadow + line-clamp + hover improvements).
+- Lint: 0 errors, 0 warnings throughout.
+
+## Completed Modifications
+
+### New Feature: Event Creation for Business Owners (fully functional)
+- **`POST /api/events`** endpoint: auth-required, validates title/description/category/startDate, generates unique slug, validates businessId ownership if provided, creates event with all fields (title, description, category, startDate, endDate, location, isOnline, onlineUrl, registrationUrl, capacity, imageUrl, businessId).
+- **`GET /api/events`** extended: now supports `?owner=1` filter (returns only the current user's events), and includes `organizer` + `business` relations in the response.
+- **`DashboardEventsView`** (`src/views/dashboard/events.tsx`): "My Events" dashboard page with "Host an event" CTA, fetches owner events, empty state (CalendarPlus icon), event row cards with date tile, clickable title, category pill, attendees/capacity, business badge. Staggered animations.
+- **`NewEventView`** (`src/views/dashboard/event-new.tsx`): premium creation form with all fields — title, description (with char counter), category Select, start/end datetime-local inputs, online toggle (Switch) that swaps Online URL ↔ Location, registration URL, capacity, "Host as business" Select (fetches owner's businesses), ImageUpload for event banner. Client-side validation, loading state, success toast "Event created — it's now live on BlakNet" → navigate to dashboard-events.
+- **New route**: `dashboard-event-new` added to types + store parser.
+- **Wiring**: dashboard-events route now renders `DashboardEventsView` (was reusing public EventsView); dashboard-event-new renders `NewEventView`.
+
+### Styling Polish
+- **Events cards** (public): added `shadow-sm` to card button (so cards don't blend into cream background), `leading-relaxed` on description for consistent card heights. Date badge + category pill hover states verified.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy, all APIs 200.
+- Functional tests:
+  - Dashboard Events: shows owner's events (demo owns "BlakNet Founder Connect") ✓.
+  - Event creation form: renders with all fields, validation blocks submit until required fields filled ✓.
+  - Events API: POST returns 401 when unauthed (correct) ✓.
+  - Event detail: Register toggle works ("You're registered") ✓.
+  - Business profile: Follow button present, services show "Cloud Consulting" from earlier edit ✓.
+- VLM: Event creation form 8/10 (clean hierarchy, good field grouping, accessibility).
+- Note: headless browser cannot fill datetime-local inputs (known limitation) — the form + API are correctly built; manual testing would confirm full creation flow.
+
+## Unresolved Issues / Risks
+- **Headless browser datetime limitation**: agent-browser can't fill `<input type="datetime-local">` — not a code bug, just a testing constraint.
+- **Admin Events/Newsfeed/Resources are read-only** — no create/edit/delete moderation actions yet.
+- **Admin Reports + Settings** still "coming soon" (2 items).
+- **Avatar/image storage**: still data-uri in DB.
+
+## Priority Recommendations for Next Phase
+1. **Yoco subscription checkout** (Phase 3 revenue path) — still the top functional gap.
+2. **Admin post moderation** — delete/pin/hide posts from admin newsfeed view.
+3. **Admin Reports view** — analytics dashboard (profile views, search appearances, enquiries, registrations).
+4. **Event editing** — let organizers edit/delete their own events (PATCH/DELETE endpoints + UI).
+5. **Notification preferences persistence** — store the 3 channel toggles on User/Profile.

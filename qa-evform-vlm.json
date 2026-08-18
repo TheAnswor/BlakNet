@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**Rating: 8/10**\n\n**Strengths:** Clean visual hierarchy, excellent whitespace, clear required-field indicators, helpful microcopy (capacity/URL hints), logical field grouping, and strong accessibility (labels, ARIA hints).\n\n**2 Polish Items:**\n\n1. **Character counter visibility** – The \"81/2000\" limit for the description field is too faint and right-aligned; move it below the input or increase contrast so users notice constraints before typing.\n2. **Toggle affordance** – The \"Is this an online event?\" switch lacks a label showing current state (On/Off); add text beside the toggle or use a segmented control to reduce cognitive load.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1787018936,
+  "id": "202608181008537c2e66c4e7f24123",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202608181008537c2e66c4e7f24123",
+  "usage": {
+    "completion_tokens": 139,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2496,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 2635
+  }
+}
