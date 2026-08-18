@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { Logo } from "@/components/blaknet/logo";
+import { ThemeToggle } from "@/components/blaknet/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Menu, Search, Bell, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
@@ -97,6 +98,7 @@ export function PublicHeader() {
 
         {/* Auth / actions */}
         <div className="ml-auto flex items-center gap-2 md:ml-2">
+          <ThemeToggle />
           {authLoading ? (
             <div className="h-9 w-24 animate-pulse rounded-full bg-muted" />
           ) : authUser ? (

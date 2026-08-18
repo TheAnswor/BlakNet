@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import { LogoMark } from "@/components/blaknet/logo";
+import { ThemeToggle } from "@/components/blaknet/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -145,6 +146,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <button
               onClick={() => navigate({ name: "dashboard-notifications" })}
               className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground/70 hover:border-foreground/30 hover:text-foreground"
