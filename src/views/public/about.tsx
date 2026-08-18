@@ -94,7 +94,7 @@ export function AboutView() {
     <div className="flex flex-col">
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden bg-ink-grain text-cream">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.4]">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.04]">
           <LogoMark className="absolute -right-16 -top-10 h-72 w-72 text-cream/10" size={288} />
         </div>
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
@@ -105,10 +105,10 @@ export function AboutView() {
             <h1 className="font-display text-4xl leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-[4.2rem]">
               The digital infrastructure for Black-owned business.
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-balance text-base leading-relaxed text-cream/70 sm:text-lg">
+            <p className="mx-auto mt-6 max-w-2xl text-balance text-base leading-relaxed text-cream/65 sm:text-lg">
               BlakNet is the platform helping Black-owned businesses in South Africa get discovered, build real networks, and prepare for procurement, partnerships and funding — all in one place.
             </p>
-            <p className="mt-8 font-display text-xl italic text-sage sm:text-2xl">
+            <p className="mt-8 font-display text-lg italic text-sage sm:text-xl">
               Get Exposed. Get Connected. Get Ready.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -189,11 +189,11 @@ export function AboutView() {
             <div className="hidden lg:block">
               <div className="relative">
                 <div className="absolute left-0 right-0 top-5 h-px bg-border" />
-                <ol className="relative grid grid-cols-7 gap-2">
+                <ol className="relative flex gap-2">
                   {JOURNEY.map((step, i) => (
                     <li
                       key={step}
-                      className="flex flex-col items-center text-center"
+                      className="flex flex-1 flex-col items-center text-center"
                     >
                       <div
                         className={
@@ -204,7 +204,7 @@ export function AboutView() {
                       >
                         {String(i + 1).padStart(2, "0")}
                       </div>
-                      <div className="mt-3 text-[12px] font-medium leading-snug text-ink">
+                      <div className="mt-3 text-[11px] font-medium leading-snug text-ink sm:text-xs">
                         {step}
                       </div>
                     </li>
@@ -214,19 +214,20 @@ export function AboutView() {
             </div>
 
             {/* Mobile: vertical */}
-            <ol className="flex flex-col gap-4 lg:hidden">
+            <ol className="relative flex flex-col gap-3 lg:hidden">
+              <div className="pointer-events-none absolute bottom-6 left-[18px] top-6 w-px bg-border" />
               {JOURNEY.map((step, i) => (
-                <li key={step} className="flex items-center gap-3">
+                <li key={step} className="relative z-10 flex items-center gap-3 text-left">
                   <div
                     className={
                       i === 0 || i === JOURNEY.length - 1
-                        ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-cream"
-                        : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold text-ink border border-border"
+                        ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-cream ring-4 ring-background"
+                        : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold text-ink border border-border ring-4 ring-background"
                     }
                   >
                     {String(i + 1).padStart(2, "0")}
                   </div>
-                  <div className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-ink">
+                  <div className="flex-1 text-[11px] font-medium leading-snug text-ink sm:text-xs">
                     {step}
                   </div>
                 </li>
@@ -239,17 +240,24 @@ export function AboutView() {
       {/* ===== STATS ===== */}
       <section className="bg-ink-grain text-cream">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-cream/10 bg-cream/10 sm:grid-cols-4">
-            {STATS.map((s) => (
-              <div key={s.label} className="bg-ink/40 px-4 py-8 text-center backdrop-blur">
-                <div className="font-display text-3xl tracking-tight text-cream sm:text-4xl">
-                  {s.value}
+          <div className="glass overflow-hidden rounded-2xl">
+            <div className="grid grid-cols-2 sm:grid-cols-4">
+              {STATS.map((s, i) => (
+                <div
+                  key={s.label}
+                  className="relative px-4 py-10 text-center animate-fade-in-up"
+                  style={{ animationDelay: `${i * 80}ms` }}
+                >
+                  <div className="pointer-events-none absolute inset-x-2 top-1/2 -z-0 h-24 -translate-y-1/2 bg-sage/20 blur-3xl" />
+                  <div className="relative font-display text-4xl tracking-tight text-cream sm:text-5xl">
+                    {s.value}
+                  </div>
+                  <div className="relative mt-2 text-[11px] uppercase tracking-wider text-cream/50">
+                    {s.label}
+                  </div>
                 </div>
-                <div className="mt-1 text-[11px] uppercase tracking-wider text-cream/55">
-                  {s.label}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>

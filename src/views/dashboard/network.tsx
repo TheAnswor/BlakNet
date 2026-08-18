@@ -194,13 +194,16 @@ export function NetworkView() {
             Manage the relationships that move your business forward — clients, suppliers, partners and prospects.
           </p>
         </div>
-        <Button onClick={openAdd} className="bg-ink text-cream hover:bg-ink/90">
+        <Button
+          onClick={openAdd}
+          className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90"
+        >
           <Plus className="mr-1.5 h-4 w-4" /> Add contact
         </Button>
       </div>
 
-      <div className="space-y-3">
-        <div className="relative max-w-md">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -209,24 +212,23 @@ export function NetworkView() {
             className="pl-9"
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <CategoryPill label="All" active={category === "All"} onClick={() => setCategory("All")} count={contacts.length} />
-          {CONTACT_CATEGORIES.map((c) => (
-            <CategoryPill
-              key={c}
-              label={c}
-              active={category === c}
-              onClick={() => setCategory(c)}
-              count={contacts.filter((x) => x.category === c).length}
-            />
-          ))}
-        </div>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="h-9 w-[160px]" aria-label="Filter by type">
+            <SelectValue placeholder="Filter by type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All types</SelectItem>
+            {CONTACT_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-5">
+        <div className="grid gap-4 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-5 card-soft">
               <Skeleton className="h-5 w-1/2" />
               <Skeleton className="mt-3 h-4 w-3/4" />
               <Skeleton className="mt-4 h-8 w-full" />
@@ -251,7 +253,10 @@ export function NetworkView() {
           title="Your network starts with one connection."
           description="Add your first contact to keep track of clients, suppliers and partners in one place."
           action={
-            <Button onClick={openAdd} className="bg-ink text-cream hover:bg-ink/90">
+            <Button
+              onClick={openAdd}
+              className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90"
+            >
               <Plus className="mr-1.5 h-4 w-4" /> Add contact
             </Button>
           }
@@ -278,14 +283,19 @@ export function NetworkView() {
           <p className="text-xs text-muted-foreground">
             Showing {filtered.length} of {contacts.length} {contacts.length === 1 ? "contact" : "contacts"}
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((c) => (
-              <ContactCard
+          <div className="grid gap-4 lg:grid-cols-2">
+            {filtered.map((c, i) => (
+              <div
                 key={c.id}
-                contact={c}
-                onEdit={() => openEdit(c)}
-                onDelete={() => setDeleteId(c.id)}
-              />
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
+                <ContactCard
+                  contact={c}
+                  onEdit={() => openEdit(c)}
+                  onDelete={() => setDeleteId(c.id)}
+                />
+              </div>
             ))}
           </div>
         </>
@@ -425,33 +435,6 @@ export function NetworkView() {
   );
 }
 
-function CategoryPill({
-  label,
-  active,
-  onClick,
-  count,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  count: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      type="button"
-      className={
-        active
-          ? "inline-flex items-center gap-1.5 rounded-full border border-ink bg-ink px-3 py-1 text-xs font-medium text-cream"
-          : "inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground/70 hover:border-foreground/30 hover:text-foreground"
-      }
-    >
-      {label}
-      <span className={active ? "text-cream/60" : "text-muted-foreground"}>{count}</span>
-    </button>
-  );
-}
-
 function ContactCard({
   contact,
   onEdit,
@@ -464,29 +447,49 @@ function ContactCard({
   const tags = contact.tags ? contact.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
   const roleLine = [contact.position, contact.company].filter(Boolean).join(" · ") || "—";
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-5">
+    <div className="group flex h-full flex-col rounded-xl border border-border bg-card p-5 card-lift card-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink font-display text-cream">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink font-display text-cream shadow-sm">
             {contact.name[0]?.toUpperCase() ?? "?"}
           </div>
           <div className="min-w-0">
-            <p className="truncate font-medium leading-tight">{contact.name}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{roleLine}</p>
+            <p className="line-clamp-1 text-sm font-medium leading-tight">{contact.name}</p>
+            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{roleLine}</p>
+            <Pill tone={categoryTone(contact.category)} className="mt-2">{contact.category}</Pill>
           </div>
         </div>
-        <Pill tone={categoryTone(contact.category)}>{contact.category}</Pill>
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onEdit}
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            aria-label="Edit contact"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onDelete}
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            aria-label="Delete contact"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
-      <div className="mt-4 space-y-1.5 text-sm">
+      <div className="mt-4 space-y-1.5">
         {contact.email && (
-          <a href={`mailto:${contact.email}`} className="flex items-center gap-2 text-foreground/70 hover:text-ink">
+          <a href={`mailto:${contact.email}`} className="flex items-center gap-2 text-xs text-foreground/70 hover:text-ink">
             <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{contact.email}</span>
           </a>
         )}
         {contact.phone && (
-          <a href={`tel:${contact.phone.replace(/\s/g, "")}`} className="flex items-center gap-2 text-foreground/70 hover:text-ink">
+          <a href={`tel:${contact.phone.replace(/\s/g, "")}`} className="flex items-center gap-2 text-xs text-foreground/70 hover:text-ink">
             <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{contact.phone}</span>
           </a>
@@ -496,7 +499,7 @@ function ContactCard({
             href={contact.website}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 text-foreground/70 hover:text-ink"
+            className="flex items-center gap-2 text-xs text-foreground/70 hover:text-ink"
           >
             <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{contact.website.replace(/^https?:\/\//, "")}</span>
@@ -525,21 +528,8 @@ function ContactCard({
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-        <p className="text-[11px] text-muted-foreground">Added {timeAgo(contact.createdAt)}</p>
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={onEdit}>
-            <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onDelete}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
-          </Button>
-        </div>
+      <div className="mt-4 flex items-center justify-end border-t border-border pt-3">
+        <p className="text-[11px] text-foreground/40">Added {timeAgo(contact.createdAt)}</p>
       </div>
     </div>
   );

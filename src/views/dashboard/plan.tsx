@@ -89,10 +89,20 @@ export function PlanView() {
 
   const detailRows = [
     subscription?.startDate
-      ? { label: "Started", value: formatDate(subscription.startDate) }
+      ? {
+          label: "Member since",
+          value: isRecent(subscription.startDate)
+            ? "Just activated"
+            : formatDate(subscription.startDate),
+        }
+      : currentPlan === "STARTER"
+        ? { label: "Member since", value: formatDate(authUser ? new Date().toISOString() : new Date().toISOString()) }
+        : null,
+    subscription?.endDate && status === "ACTIVE"
+      ? { label: "Renews on", value: formatDate(subscription.endDate) }
       : null,
-    subscription?.endDate
-      ? { label: "Renews", value: formatDate(subscription.endDate) }
+    subscription?.provider
+      ? { label: "Billing", value: subscription.provider.charAt(0).toUpperCase() + subscription.provider.slice(1) }
       : null,
   ].filter((d): d is { label: string; value: string } => d !== null);
 
@@ -183,19 +193,23 @@ export function PlanView() {
                   </span>
                 </div>
 
-                <ul className="mt-5 flex-1 space-y-2.5">
+                <div className={"mt-5 text-[11px] font-semibold uppercase tracking-wider " + (dark ? "text-cream/60" : "text-muted-foreground")}>
+                  What&rsquo;s included
+                </div>
+
+                <ul className="mt-3 flex-1 space-y-2.5">
                   {tier.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                       {f.included ? (
                         <Check className={"mt-0.5 h-4 w-4 shrink-0 text-sage"} />
                       ) : (
-                        <X className={dark ? "mt-0.5 h-4 w-4 shrink-0 text-cream/40" : "mt-0.5 h-4 w-4 shrink-0 text-foreground/30"} />
+                        <X className={dark ? "mt-0.5 h-4 w-4 shrink-0 text-cream/25" : "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/30"} />
                       )}
                       <span
                         className={
                           f.included
-                            ? (dark ? "flex-1 text-cream/90" : "flex-1 text-foreground")
-                            : (dark ? "flex-1 text-cream/50" : "flex-1 text-muted-foreground")
+                            ? (dark ? "flex-1 text-cream/90" : "flex-1 text-foreground/80")
+                            : (dark ? "flex-1 text-cream/40" : "flex-1 text-muted-foreground/50")
                         }
                       >
                         {f.label}
@@ -243,11 +257,15 @@ export function PlanView() {
           <Receipt className="h-4 w-4 text-sage" />
           <h2 className="font-display text-lg tracking-tight">Billing history</h2>
         </div>
-        <EmptyState
-          icon={Receipt}
-          title="No invoices yet"
-          description="Your first invoice will appear here after your first paid cycle."
-        />
+        <div className="rounded-xl border border-border bg-card p-8 text-center card-soft">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sage/15 text-sage">
+            <Receipt className="h-5 w-5" />
+          </div>
+          <h3 className="font-display text-xl tracking-tight">No invoices yet</h3>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
+            Your first invoice will appear here after your first paid cycle.
+          </p>
+        </div>
       </div>
 
       {/* FAQ */}
@@ -256,26 +274,34 @@ export function PlanView() {
           <Sparkles className="h-4 w-4 text-sage" />
           <h2 className="font-display text-lg tracking-tight">Frequently asked</h2>
         </div>
-        <div className="rounded-xl border border-border bg-card px-4">
-          <Accordion type="single" collapsible>
-            <AccordionItem value="cancel">
-              <AccordionTrigger>How do I cancel?</AccordionTrigger>
-              <AccordionContent>
-                You can cancel anytime from this page once Yoco billing is fully wired. For now, you won't be charged — your Starter plan is free forever. Reach out to{" "}
-                <a className="text-sage underline" href="mailto:hello@blaknet.co.za">
-                  hello@blaknet.co.za
-                </a>{" "}
-                if you'd like help.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="secure">
-              <AccordionTrigger>Is Yoco secure?</AccordionTrigger>
-              <AccordionContent>
-                Yes. Yoco is PCI-DSS Level 1 certified and processes payments securely on their own infrastructure. BlakNet never stores your card details — we only receive a confirmation token once payment is approved.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
+        <Accordion type="single" collapsible>
+          <AccordionItem
+            value="cancel"
+            className="mb-3 rounded-xl border border-border bg-card px-5 shadow-sm card-lift last:mb-0"
+          >
+            <AccordionTrigger className="hover:no-underline [&:hover>svg]:text-sage">
+              How do I cancel?
+            </AccordionTrigger>
+            <AccordionContent>
+              You can cancel anytime from this page once Yoco billing is fully wired. For now, you won&rsquo;t be charged — your Starter plan is free forever. Reach out to{" "}
+              <a className="text-sage underline" href="mailto:hello@blaknet.co.za">
+                hello@blaknet.co.za
+              </a>{" "}
+              if you&rsquo;d like help.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem
+            value="secure"
+            className="mb-3 rounded-xl border border-border bg-card px-5 shadow-sm card-lift last:mb-0"
+          >
+            <AccordionTrigger className="hover:no-underline [&:hover>svg]:text-sage">
+              Is Yoco secure?
+            </AccordionTrigger>
+            <AccordionContent>
+              Yes. Yoco is PCI-DSS Level 1 certified and processes payments securely on their own infrastructure. BlakNet never stores your card details — we only receive a confirmation token once payment is approved.
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
     </div>
   );
@@ -336,4 +362,9 @@ function planNote(p: Plan, status: SubscriptionStatus): string {
     case "INTELLIGENCE":
       return "You're on Intelligence. Full suite unlocked.";
   }
+}
+
+function isRecent(date: string | Date): boolean {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return Date.now() - d.getTime() < 7 * 24 * 60 * 60 * 1000; // within 7 days
 }

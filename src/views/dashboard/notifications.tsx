@@ -20,7 +20,6 @@ import {
   CreditCard,
   Mail,
   Sparkles,
-  Check,
 } from "lucide-react";
 
 export function NotificationsView() {
@@ -130,13 +129,18 @@ export function NotificationsView() {
           description="No notifications right now."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-xl border border-border bg-card card-soft">
           <ul className="divide-y divide-border">
-            {items.map((n) => (
-              <li key={n.id}>
+            {items.map((n, i) => (
+              <li
+                key={n.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
                 <button
                   type="button"
                   onClick={() => markOne(n)}
+                  title={n.read ? undefined : "Mark as read"}
                   className={
                     n.read
                       ? "flex w-full items-start gap-3 px-4 py-4 text-left sm:px-5"
@@ -165,9 +169,6 @@ export function NotificationsView() {
                     <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
                     <p className="mt-1 text-[11px] text-foreground/40">{timeAgo(n.createdAt)}</p>
                   </div>
-                  {!n.read && (
-                    <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-                  )}
                 </button>
               </li>
             ))}

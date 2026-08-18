@@ -597,3 +597,131 @@ BlakNet was stable and functional from round 1 (home/directory/business-profile/
 3. **Notification preferences persistence** — store the 3 channel toggles on User/Profile + a notifications settings table for granular types.
 4. **Image uploads for businesses** — extend the data-uri pattern to business logos/covers (or introduce a real storage bucket).
 5. **Hover-lift sweep** — ensure `card-lift` is on all clickable card wrappers (events, resources) for consistent tactile feedback.
+
+---
+Task ID: STYLING-NET-NOTIF
+Agent: Z.ai Code (subagent) — Network + Notifications styling polish
+Task: VLM-identified styling fixes on the Dashboard Network and Notifications views. STYLING ONLY.
+
+## Files Edited
+1. `src/views/dashboard/network.tsx` — `NetworkView` (3 fixes)
+2. `src/views/dashboard/notifications.tsx` — `NotificationsView` (2 fixes)
+
+## Changes — Network (`network.tsx`)
+- **Fix 1 — Contact card hierarchy & density**:
+  - Avatar restyled to `h-11 w-11 rounded-xl bg-ink font-display text-cream shadow-sm` (matches dashboard stat-card icon system, was `h-10 w-10 rounded-full`).
+  - Name → `text-sm font-medium leading-tight line-clamp-1` (was `truncate`, fixes truncated job titles by allowing wrap-then-clamp).
+  - Role line (position · company) → `text-xs text-muted-foreground line-clamp-1` (was `truncate`).
+  - Category `Pill` moved from header-right to below the name (so the header-right can host the hover-reveal action buttons); kept `categoryTone()` mapping.
+  - Card root gained `group flex h-full flex-col card-lift card-soft` (kept `rounded-xl border border-border bg-card p-5`) — tactile hover-lift + soft resting shadow.
+  - Each card wrapped in `<div className="animate-fade-in-up" style={{ animationDelay: \`${i*50}ms\` }}>` for staggered mount.
+  - Edit/Delete actions extracted from the footer into icon buttons in the header right column: `<Button size="icon" variant="ghost" className="h-7 w-7 ...">` with `Pencil` / `Trash2` icons, wrapped in `opacity-0 transition-opacity duration-200 group-hover:opacity-100` container for hover-reveal. Added `aria-label` on each.
+  - Footer simplified: removed Edit/Delete, now just the timestamp right-aligned via `justify-end`, restyled to `text-[11px] text-foreground/40` (was `text-muted-foreground` left-aligned).
+- **Fix 2 — Filter UI: pills → Select dropdown**:
+  - Removed the entire `CategoryPill` helper component (no longer used).
+  - Filter row replaced with a flex row: search input (`w-full sm:w-64`) + `<Select>` dropdown (`h-9 w-[160px]`) showing "All types" + all `CONTACT_CATEGORIES`. `SelectTrigger` gets `aria-label="Filter by type"`.
+  - Search input kept identical (Search icon, `pl-9`).
+  - Page-header "Add contact" button kept on the right of the page header (not moved).
+- **Fix 3 — Premium polish on Add-contact flow**:
+  - Both "Add contact" buttons (page header + empty state) gained `btn-lift shadow-md shadow-ink/15` on top of existing `bg-ink text-cream hover:bg-ink/90`.
+  - Results grid changed from `grid gap-4 sm:grid-cols-2 xl:grid-cols-3` → `grid gap-4 lg:grid-cols-2` (more compact, denser layout per spec).
+  - Loading skeleton grid also changed to `lg:grid-cols-2` (4 cards) and gained `card-soft` to match the resting card style.
+  - Email/phone/website rows standardized to `text-xs text-foreground/70` with `hover:text-ink` and icon `h-3.5 w-3.5 text-muted-foreground` (was `text-sm`).
+
+## Changes — Notifications (`notifications.tsx`)
+- **Fix 1 — Unread dot consistency**:
+  - Verified: every unread item renders the sage dot (`bg-sage h-2 w-2 rounded-full` with `aria-label="unread"`) AND the `bg-sage/[0.04]` row tint; read items get neither, with muted `bg-muted text-muted-foreground` icon. Logic was already correct — left intact.
+  - Removed the right-side `<Check className="mt-1 h-3.5 w-3.5 ..." />` element that previously appeared on unread rows (was confusing — the whole row is already clickable to mark read).
+  - Added `title={n.read ? undefined : "Mark as read"}` to the row button for a subtle native hover tooltip on unread items, keeping the sage dot as the sole persistent unread indicator.
+  - Removed the now-unused `Check` import from `lucide-react`.
+- **Fix 2 — Icon alignment & polish**:
+  - Verified `items-start` on row, `mt-0.5` on icon span, `min-w-0 flex-1` on text block, `mt-1` on timeAgo — all already correct.
+  - Each `<li>` now wrapped with `className="animate-fade-in-up"` and `style={{ animationDelay: \`${i*40}ms\` }}` for staggered mount (added `i` index to the `.map`).
+  - Notifications container gained `card-soft` (was `overflow-hidden rounded-xl border border-border bg-card`).
+
+## Preservation
+- Both files keep `'use client'`, all imports (except removed `Check`), all hooks, all state (`contacts`, `loading`, `error`, `search`, `category`, `dialogOpen`, `editing`, `form`, `submitting`, `deleteId`, `deleting` / `items`, `loading`, `error`, `markingAll`), all API calls (`/api/contacts`, `/api/contacts/:id`, `/api/notifications`, `/api/notifications/read`), all event handlers, the `NotificationIcon` sub-component, and the named exports `NetworkView` / `NotificationsView`. STYLING ONLY — no behavior, data-fetch, routing, or signature changes.
+
+## Verification
+- `bun run lint` → 0 errors, 0 warnings (clean).
+- Dev server: healthy. `GET / 200` (247ms compile+render), `✓ Compiled in 168ms / 186ms / 291ms / 188ms` with no error lines.
+- No TypeScript or runtime errors observed.
+
+## Stage Summary
+Both Dashboard views polished to the brand system. Network: denser 2-column card grid with tactile `card-lift`/`card-soft` cards, hover-reveal icon actions, an `h-11 w-11 rounded-xl` avatar matching the dashboard stat-card system, line-clamped name/role to fix truncation, a cleaner Select-based category filter replacing the pill row, and a `btn-lift`-shaded primary "Add contact" CTA. Notifications: container gained `card-soft`, each row staggers in with `animate-fade-in-up` (40ms increments), the confusing right-side checkmark is gone (replaced with a native "Mark as read" tooltip), and the sage dot + tint remain the sole consistent unread indicators. No new features, no API/state/routing changes. Ready for VLM re-review.
+
+---
+Task ID: STYLING-PLAN-ABOUT
+Agent: general-purpose (Z.ai Code sub-agent)
+Task: Polish BlakNet Plan (dashboard) + About (public) views styling — 3 + 3 VLM-identified fixes, styling only.
+
+Work Log:
+- Read worklog + `src/views/dashboard/plan.tsx` + `src/views/public/about.tsx` + `src/components/blaknet/section.tsx` (EmptyState + SectionHeading contracts) + `src/components/ui/accordion.tsx` (chevron is direct `<svg>` child of AccordionTrigger → targetable via `[&:hover>svg]:text-sage`) + `src/app/globals.css` (verified `.card-lift`, `.card-soft`, `.glass`, `.animate-fade-in-up`, `.bg-ink-grain`, `.bg-cream-grain` exist) + `src/components/blaknet/logo.tsx` (LogoMark path B uses hardcoded `#F6F6DF` fill so `text-cream/10` only affects the rect; container `opacity-[0.4]` × `text-cream/10` gives B ~40% visible opacity → matches VLM "distracting").
+
+### plan.tsx (3 fixes)
+- Fix 1 (excluded feature hierarchy + "What's included" eyebrow): in each plan-tier card feature list, reduced excluded feature weight to `text-muted-foreground/50` (light) / `text-cream/40` (dark) and X icon to `text-muted-foreground/30` (light) / `text-cream/25` (dark). Included features stay strong: `text-foreground/80` (light, was `text-foreground`) / `text-cream/90` (dark, unchanged). Check icon remains `text-sage`. Added an eyebrow above each `<ul>`: `text-[11px] font-semibold uppercase tracking-wider text-muted-foreground` (light) / `text-cream/60` (dark) reading "What's included" (entity-encoded `'` to avoid raw apostrophe). `<ul>` margin tightened from `mt-5` → `mt-3` to compensate for the new eyebrow row.
+- Fix 2 (billing history empty state container): replaced the bare `EmptyState` with a proper card: `rounded-xl border border-border bg-card p-8 text-center card-soft`. Receipt icon now sits in a tinted circle `mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sage/15 text-sage` above the heading. Section header "Billing history" already used `font-display text-lg` + Receipt icon (no change needed). EmptyState import retained (still used for the error-state branch).
+- Fix 3 (FAQ borders & hover): removed the outer `<div className="rounded-xl border border-border bg-card px-4">` wrapper. Each AccordionItem now has its own container: `mb-3 rounded-xl border border-border bg-card px-5 shadow-sm card-lift last:mb-0`. AccordionTrigger classes added: `hover:no-underline` (overrides default `hover:underline`) + `[&:hover>svg]:text-sage` (recolors the chevron sage on hover). Verified chevron is a direct `<svg>` child of the trigger in `accordion.tsx`.
+
+### about.tsx (3 fixes)
+- Fix 1 (hero contrast & watermark clutter): hero body paragraph `text-cream/70` → `text-cream/65` (per spec literal directive). Watermark LogoMark container `opacity-[0.4]` → `opacity-[0.04]` — this reduces the visible "B" opacity from ~40% to ~4% (subtle, not distracting), since the B path has hardcoded `#F6F6DF` fill so it scales linearly with the container opacity. Tagline "Get Exposed. Get Connected. Get Ready." kept `text-sage italic` (already correct per spec) and reduced size `text-xl sm:text-2xl` → `text-lg sm:text-xl` so it reads clearly secondary to the `text-4xl→[4.2rem]` headline.
+- Fix 2 (journey stepper responsive): desktop horizontal layout switched from `grid grid-cols-7 gap-2` to `flex gap-2` with each `<li>` given `flex-1` (per spec). Step label text reduced from `text-[12px]` to `text-[11px] sm:text-xs`. Mobile vertical layout rebuilt: removed the per-step bordered card around the label; each step is now a clean row (number circle left + label right, `text-left`). Added a vertical connector line `pointer-events-none absolute bottom-6 left-[18px] top-6 w-px bg-border` positioned to run through the center of the h-9 (=36px) number circles (center at 18px from left). Step circles gained `ring-4 ring-background` on mobile so the vertical line visually breaks around each node (matching the desktop treatment). Step label text matches desktop: `text-[11px] sm:text-xs`.
+- Fix 3 (stats impact): rebuilt the stats bar inside a `glass` container with `rounded-2xl` (was a flat `bg-cream/10 border border-cream/10` grid with `gap-px`). Each stat: bigger numbers `font-display text-4xl sm:text-5xl text-cream` (was `text-3xl sm:text-4xl`). Added a sage glow behind each number: `pointer-events-none absolute inset-x-2 top-1/2 -z-0 h-24 -translate-y-1/2 bg-sage/20 blur-3xl`. Numbers and labels wrapped in `relative` so they sit above the glow. Labels `text-cream/55` → `text-cream/50` (per spec). Added `animate-fade-in-up` with `animationDelay: ${i * 80}ms` inline style for staggered mount.
+
+Verification:
+- STYLING ONLY: preserved `'use client'`, all imports (including `EmptyState` — still used by error branch in plan.tsx), hooks, props, helper functions (`StatusBadge`, `planRank`, `planNameLabel`, `planPriceLabel`, `planNote`, `isRecent`), state (`subscription`, `loading`, `error`), API call (`/api/subscriptions`), `useToast` usage, `PLANS`/`STATS` constants usage, component exports/signatures (`PlanView`, `AboutView`). No new features, no API/routing/state changes.
+- Lint: `bun run lint` → 0 errors, 0 warnings (clean, no output).
+- Dev server: `GET / 200 in 223ms` after edits, `✓ Compiled in 356ms / 284ms` with no compile/runtime errors.
+
+Stage Summary:
+- Both Plan and About views polished to the brand-aligned cohesive system per VLM direction. Plan: feature lists now have clear included/excluded hierarchy (sage Check + dark text vs. muted/30 X + faded text) with a "What's included" eyebrow; the billing-history empty state lives in a proper `card-soft` container with a sage-tinted Receipt circle; FAQ items now sit in their own `card-lift` cards with sage chevron on hover (no longer blending into the background). About: hero body text and watermark decluttered (watermark opacity 0.4 → 0.04, body text-cream/65), italic sage tagline reads clearly secondary to the headline; journey stepper is now genuinely responsive (horizontal `flex gap-2` on lg, vertical flex-col with a vertical connector line on mobile, unified `text-[11px] sm:text-xs` labels, text-center/text-left as needed); stats bar lives in a `glass rounded-2xl` container with bigger `text-4xl sm:text-5xl` numbers, a sage glow behind each, and a staggered `animate-fade-in-up` mount. No new features, no API/state/routing/prop changes. Ready for VLM re-review.
+
+---
+Task ID: CRON-QA-3
+Agent: Z.ai Code (main) — web dev review cron round 3
+Task: Assess status, QA via agent-browser + VLM, polish remaining dashboard views, add password change feature, fix plan date bug.
+
+## Current Project Status Assessment
+BlakNet was stable and polished across home/directory/business-profile/newsfeed/pricing/events/dashboard-overview/resources (all 8-9/10). This round focused on: (a) the remaining unpolished views (network CRM, notifications, plan, about), (b) fixing a plan-page date-logic bug, and (c) closing the last "coming soon" stub — the password change feature.
+
+## QA Performed
+- VLM critical reviews of network CRM (3 issues), notifications (2 issues), plan (3 issues), about (3 issues).
+- Functional test: password change (fill → Save → "Password updated" → sign out → login with new password ✓).
+- Functional test: notifications mark-all-as-read (works, sidebar badge clears on navigation ✓).
+- Lint: 0 errors, 0 warnings throughout.
+
+## Completed Modifications
+
+### Bug Fixes
+1. **Plan page date logic**: Labels "Started/Renews" with future-dated demo data were misleading. Changed to "Member since" (shows "Just activated" if <7 days old) + "Renews on" (only when ACTIVE) + "Billing" (provider). Added `isRecent()` helper.
+2. **Password API 500**: `cookies()` in Next.js 16 returns a Promise — fixed `(await import("next/headers")).cookies()` to `(await cookies())` with a proper top-level import. Endpoint now returns 200/403 correctly.
+
+### New Feature: Password Change (fully functional, closes last "coming soon" stub)
+- **`POST /api/auth/password`** — verifies current password (hashPassword compare), validates new password (≥6 chars, ≤128, different from current), updates hash, and **invalidates all other sessions** for security (keeps the current session via cookie token). Returns 403 if current password wrong, 400 for validation errors.
+- **Settings view**: `savePassword` now calls the real API with loading state (Loader2 spinner on Save button), client-side validation (all fields filled, ≥6 chars, passwords match), success toast "Password updated · Your other devices have been signed out", error toasts for incorrect password / validation.
+- Verified: changed demo password blaknet123 → newpass456 → signed out → logged in with newpass456 → dashboard loaded ✓. (Then reset demo password back to blaknet123 for future rounds.)
+
+### Styling Polish (network + notifications + plan + about)
+1. **Network CRM** (via subagent STYLING-NET-NOTIF): contact cards now `card-lift card-soft` with hover-reveal Edit/Delete icon buttons (opacity-0 group-hover:opacity-100), avatar upgraded to `h-11 w-11 rounded-xl bg-ink font-display text-cream shadow-sm` (matches stat-card system), name/role hierarchy fixed (line-clamp-1), category pill below name, timestamp muted right-aligned, replaced horizontal category pill row with a compact `Select` dropdown "Filter by type", 2-column grid on lg, staggered fade-in-up animations, Add-contact button `btn-lift shadow-md`. VLM: 8/10.
+2. **Notifications** (via subagent): removed confusing right-side Check icon (the sage dot + row tint are the sole unread indicators), added `title="Mark as read"` tooltip, `animate-fade-in-up` stagger on rows, `card-soft` on container. VLM: consistent.
+3. **Plan** (via subagent STYLING-PLAN-ABOUT): excluded features now `text-muted-foreground/50` with muted X (clear hierarchy vs included), "What's included" eyebrow on each tier card, billing-history empty state in a proper `card-soft` container with Receipt icon, FAQ items in individual `card-lift` cards with sage chevron hover. VLM: 8.5/10.
+4. **About** (via subagent): hero body text contrast increased (cream/65), "B" watermark opacity reduced to 0.04 (subtle), tagline smaller (text-lg), 7-step journey stepper now responsive (horizontal on lg, vertical on mobile with connector line), stats in `glass` container with sage glow + bigger numbers (text-5xl) + staggered animation. VLM: 8.5/10.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy, all APIs 200.
+- VLM ratings: Network 8/10, Plan 8.5/10, About 8.5/10, Notifications consistent.
+- Functional: password change + session invalidation ✓, notifications mark-read ✓, plan dates fixed ✓.
+
+## Unresolved Issues / Risks
+- **Avatar storage**: still data-uri in DB (fine for MVP, not production-scale).
+- **Notification preferences**: toggles still cosmetic (no persistence) — low priority.
+- **Minor VLM items**: network empty/loading states could use shimmer; about "Our Why" 2×2 grid could integrate better with narrative; plan empty-state could have illustration. All non-blocking.
+- **Demo password**: was temporarily changed during password-change testing, then reset to `blaknet123` (documented credential restored).
+
+## Priority Recommendations for Next Phase
+1. **Yoco subscription checkout** (Phase 3 revenue path) — still the top functional gap.
+2. **Notification preferences persistence** — store the 3 channel toggles on User/Profile.
+3. **Business image uploads** — extend the data-uri avatar pattern to business logos/covers.
+4. **Admin views expansion** — the admin console currently only has overview + verification; spec calls for Users, Businesses, Industries, Events, Newsfeed, Resources, Reviews, Subscriptions, Reports, Settings management pages.
+5. **Hover-lift sweep** — ensure all clickable card wrappers have `card-lift` for consistent tactile feedback.

@@ -76,6 +76,7 @@ export function SettingsView() {
     next: "",
     confirm: "",
   });
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifInApp, setNotifInApp] = useState(true);
@@ -200,9 +201,17 @@ export function SettingsView() {
     }
   }
 
-  function savePassword(e: React.FormEvent) {
+  async function savePassword(e: React.FormEvent) {
     e.preventDefault();
-    if (password.next && password.next !== password.confirm) {
+    if (!password.current || !password.next) {
+      toast({ title: "Fill in all fields", description: "Current and new passwords are required.", variant: "destructive" });
+      return;
+    }
+    if (password.next.length < 6) {
+      toast({ title: "Password too short", description: "New password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (password.next !== password.confirm) {
       toast({
         title: "Passwords don't match",
         description: "Your new password and confirmation must match.",
@@ -210,11 +219,20 @@ export function SettingsView() {
       });
       return;
     }
-    setPassword({ current: "", next: "", confirm: "" });
-    toast({
-      title: "Password change coming soon",
-      description: "Reach out to support if you need a reset right now.",
-    });
+    setSavingPassword(true);
+    try {
+      await api("/api/auth/password", {
+        method: "POST",
+        json: { current: password.current, next: password.next },
+      });
+      setPassword({ current: "", next: "", confirm: "" });
+      toast({ title: "Password updated", description: "Your other devices have been signed out." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not change password.";
+      toast({ title: "Could not change password", description: msg, variant: "destructive" });
+    } finally {
+      setSavingPassword(false);
+    }
   }
 
   function saveNotifications() {
@@ -514,8 +532,14 @@ export function SettingsView() {
               </div>
 
               <div className="mt-5 flex justify-end">
-                <Button type="submit" className="bg-ink text-cream hover:bg-ink/90">
-                  Save password
+                <Button type="submit" disabled={savingPassword} className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90">
+                  {savingPassword ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Updating…
+                    </>
+                  ) : (
+                    "Save password"
+                  )}
                 </Button>
               </div>
             </form>
