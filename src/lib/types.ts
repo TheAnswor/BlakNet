@@ -75,6 +75,9 @@ export interface Business {
   services?: BusinessService[];
   products?: BusinessProduct[];
   reviews?: BusinessReview[];
+  followerCount?: number;
+  following?: boolean;
+  isOwner?: boolean;
 }
 
 export interface Post {
@@ -188,6 +191,7 @@ export type Route =
   | { name: "dashboard-business-new" }
   | { name: "dashboard-business"; id: string }
   | { name: "dashboard-network" }
+  | { name: "dashboard-following" }
   | { name: "dashboard-newsfeed" }
   | { name: "dashboard-events" }
   | { name: "dashboard-resources" }

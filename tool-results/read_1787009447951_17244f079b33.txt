@@ -1,0 +1,761 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useEffect, useMemo, useState } from "react";
+     4→     4→import { useApp } from "@/lib/store";
+     5→     5→import { api } from "@/lib/api";
+     6→     6→import { Button } from "@/components/ui/button";
+     7→     7→import { Input } from "@/components/ui/input";
+     8→     8→import { Textarea } from "@/components/ui/textarea";
+     9→     9→import { Skeleton } from "@/components/ui/skeleton";
+    10→    10→import { Separator } from "@/components/ui/separator";
+    11→    11→import { Progress } from "@/components/ui/progress";
+    12→    12→import {
+    13→    13→  Select,
+    14→    14→  SelectTrigger,
+    15→    15→  SelectValue,
+    16→    16→  SelectContent,
+    17→    17→  SelectItem,
+    18→    18→} from "@/components/ui/select";
+    19→    19→import { useToast } from "@/hooks/use-toast";
+    20→    20→import { EmptyState } from "@/components/blaknet/section";
+    21→    21→import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
+    22→    22→import { StarRating } from "@/components/blaknet/star-rating";
+    23→    23→import type { Business, BusinessReview } from "@/lib/types";
+    24→    24→import { formatNumber, provinceCity, timeAgo } from "@/lib/format";
+    25→    25→import {
+    26→    26→  Globe,
+    27→    27→  Mail,
+    28→    28→  Phone,
+    29→    29→  MessageCircle,
+    30→    30→  MapPin,
+    31→    31→  Eye,
+    32→    32→  ShieldCheck,
+    33→    33→  Building2,
+    34→    34→  Calendar,
+    35→    35→  Star,
+    36→    36→  Plus,
+    37→    37→  Share2,
+    38→    38→  ExternalLink,
+    39→    39→  Frown,
+    40→    40→  ArrowLeft,
+    41→    41→  CheckCircle2,
+    42→    42→} from "lucide-react";
+    43→    43→
+    44→    44→// ---------- types ----------
+    45→    45→type ProfileBusiness = Business & {
+    46→    46→  rating: number;
+    47→    47→  reviewCount: number;
+    48→    48→  postCount: number;
+    49→    49→  eventCount: number;
+    50→    50→  isOwner: boolean;
+    51→    51→};
+    52→    52→
+    53→    53→interface ProfileResponse {
+    54→    54→  business: ProfileBusiness;
+    55→    55→}
+    56→    56→
+    57→    57→interface ReviewPayload {
+    58→    58→  review: BusinessReview;
+    59→    59→}
+    60→    60→
+    61→    61→const SEARCH_KEY = "blaknet:directory-search";
+    62→    62→
+    63→    63→export function BusinessProfileView() {
+    64→    64→  const route = useApp((s) => s.route);
+    65→    65→  if (route.name !== "business") return null;
+    66→    66→  // `key` ensures the inner component fully remounts on slug change → all
+    67→    67→  // state (loading, notFound, reviews, form) resets cleanly between profiles.
+    68→    68→  return <BusinessProfile key={route.slug} slug={route.slug} />;
+    69→    69→}
+    70→    70→
+    71→    71→function BusinessProfile({ slug }: { slug: string }) {
+    72→    72→  const navigate = useApp((s) => s.navigate);
+    73→    73→  const authUser = useApp((s) => s.authUser);
+    74→    74→  const { toast } = useToast();
+    75→    75→
+    76→    76→  const [business, setBusiness] = useState<ProfileBusiness | null>(null);
+    77→    77→  const [loading, setLoading] = useState(true);
+    78→    78→  const [notFound, setNotFound] = useState(false);
+    79→    79→
+    80→    80→  // review form
+    81→    81→  const [showReviewForm, setShowReviewForm] = useState(false);
+    82→    82→  const [reviewRating, setReviewRating] = useState(5);
+    83→    83→  const [reviewText, setReviewText] = useState("");
+    84→    84→  const [reviewCompany, setReviewCompany] = useState("");
+    85→    85→  const [submittingReview, setSubmittingReview] = useState(false);
+    86→    86→  const [localReviews, setLocalReviews] = useState<BusinessReview[] | null>(null);
+    87→    87→
+    88→    88→  // ---------- fetch business + fire view increment ----------
+    89→    89→  useEffect(() => {
+    90→    90→    let cancelled = false;
+    91→    91→    api<ProfileResponse>(`/api/businesses/${encodeURIComponent(slug)}`)
+    92→    92→      .then((d) => {
+    93→    93→        if (cancelled) return;
+    94→    94→        setBusiness(d.business);
+    95→    95→        // fire-and-forget view increment
+    96→    96→        fetch(`/api/businesses/${encodeURIComponent(slug)}/view`, {
+    97→    97→          method: "POST",
+    98→    98→        }).catch(() => {
+    99→    99→          /* noop */
+   100→   100→        });
+   101→   101→      })
+   102→   102→      .catch((err: Error & { status?: number }) => {
+   103→   103→        if (cancelled) return;
+   104→   104→        if (err.status === 404 || err.status === 400) {
+   105→   105→          setNotFound(true);
+   106→   106→        } else {
+   107→   107→          setNotFound(true);
+   108→   108→        }
+   109→   109→      })
+   110→   110→      .finally(() => {
+   111→   111→        if (!cancelled) setLoading(false);
+   112→   112→      });
+   113→   113→    return () => {
+   114→   114→      cancelled = true;
+   115→   115→    };
+   116→   116→  }, [slug]);
+   117→   117→
+   118→   118→  // ---------- handlers ----------
+   119→   119→  const reviews: BusinessReview[] = useMemo(() => {
+   120→   120→    if (localReviews) return localReviews;
+   121→   121→    return business?.reviews ?? [];
+   122→   122→  }, [business, localReviews]);
+   123→   123→
+   124→   124→  const submitReview = async () => {
+   125→   125→    if (!reviewText.trim()) {
+   126→   126→      toast({ title: "Review text is required", description: "Please share a few words about your experience." });
+   127→   127→      return;
+   128→   128→    }
+   129→   129→    setSubmittingReview(true);
+   130→   130→    try {
+   131→   131→      const data = await api<ReviewPayload>(
+   132→   132→        `/api/businesses/${encodeURIComponent(slug)}/reviews`,
+   133→   133→        { method: "POST", json: { rating: reviewRating, review: reviewText.trim(), reviewerCompany: reviewCompany.trim() || undefined } },
+   134→   134→      );
+   135→   135→      setLocalReviews((prev) => [data.review, ...(prev ?? business?.reviews ?? [])]);
+   136→   136→      setReviewText("");
+   137→   137→      setReviewCompany("");
+   138→   138→      setReviewRating(5);
+   139→   139→      setShowReviewForm(false);
+   140→   140→      toast({ title: "Review posted", description: "Thanks for sharing your experience." });
+   141→   141→    } catch (err) {
+   142→   142→      const msg = err instanceof Error ? err.message : "Could not submit review.";
+   143→   143→      toast({ title: "Could not submit review", description: msg });
+   144→   144→    } finally {
+   145→   145→      setSubmittingReview(false);
+   146→   146→    }
+   147→   147→  };
+   148→   148→
+   149→   149→  const shareProfile = async () => {
+   150→   150→    const url = typeof window !== "undefined" ? `${window.location.origin}/#/business/${slug}` : "";
+   151→   151→    try {
+   152→   152→      if (navigator.share) {
+   153→   153→        await navigator.share({ title: business?.name ?? "BlakNet business", url });
+   154→   154→      } else if (navigator.clipboard) {
+   155→   155→        await navigator.clipboard.writeText(url);
+   156→   156→        toast({ title: "Link copied", description: "Share this business with your network." });
+   157→   157→      }
+   158→   158→    } catch {
+   159→   159→      /* user dismissed share — noop */
+   160→   160→    }
+   161→   161→  };
+   162→   162→
+   163→   163→  const searchByTag = (term: string) => {
+   164→   164→    if (typeof window !== "undefined") {
+   165→   165→      window.sessionStorage.setItem(SEARCH_KEY, term);
+   166→   166→    }
+   167→   167→    navigate({ name: "directory" });
+   168→   168→  };
+   169→   169→
+   170→   170→  // ---------- not found ----------
+   171→   171→  if (notFound && !loading) {
+   172→   172→    return (
+   173→   173→      <div className="mx-auto max-w-3xl px-4 py-24">
+   174→   174→        <EmptyState
+   175→   175→          icon={Frown}
+   176→   176→          title="Business not found"
+   177→   177→          description="The business you're looking for may have been removed or the link is incorrect."
+   178→   178→          action={
+   179→   179→            <Button variant="outline" onClick={() => navigate({ name: "directory" })}>
+   180→   180→              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to directory
+   181→   181→            </Button>
+   182→   182→          }
+   183→   183→        />
+   184→   184→      </div>
+   185→   185→    );
+   186→   186→  }
+   187→   187→
+   188→   188→  // ---------- loading skeleton ----------
+   189→   189→  if (loading || !business) {
+   190→   190→    return <ProfileSkeleton />;
+   191→   191→  }
+   192→   192→
+   193→   193→  const b = business;
+   194→   194→  const yearFounded = b.yearFounded;
+   195→   195→  const yearsInBusiness = yearFounded ? Math.max(0, new Date().getFullYear() - yearFounded) : null;
+   196→   196→  const websiteHref = b.website ? (b.website.startsWith("http") ? b.website : `https://${b.website}`) : null;
+   197→   197→  const whatsappHref = b.whatsapp ? `https://wa.me/${b.whatsapp.replace(/[^0-9]/g, "")}` : null;
+   198→   198→
+   199→   199→  return (
+   200→   200→    <div className="flex flex-col">
+   201→   201→      {/* ===== HEADER BAND ===== */}
+   202→   202→      <section className="bg-ink-grain text-cream">
+   203→   203→        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+   204→   204→          <button
+   205→   205→            type="button"
+   206→   206→            onClick={() => navigate({ name: "directory" })}
+   207→   207→            className="mb-6 inline-flex items-center gap-1.5 text-sm text-cream/60 transition-colors hover:text-cream"
+   208→   208→          >
+   209→   209→            <ArrowLeft className="h-4 w-4" /> Directory
+   210→   210→          </button>
+   211→   211→
+   212→   212→          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+   213→   213→            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+   214→   214→              {/* logo */}
+   215→   215→              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-cream/15 bg-cream/5">
+   216→   216→                {b.logoUrl ? (
+   217→   217→                  <img src={b.logoUrl} alt={b.name} className="h-full w-full object-cover" />
+   218→   218→                ) : (
+   219→   219→                  <div className="flex h-full w-full items-center justify-center font-display text-3xl text-cream">
+   220→   220→                    {b.name[0]}
+   221→   221→                  </div>
+   222→   222→                )}
+   223→   223→              </div>
+   224→   224→
+   225→   225→              <div className="min-w-0">
+   226→   226→                <h1 className="font-display text-3xl leading-tight tracking-tight sm:text-4xl md:text-[2.6rem]">
+   227→   227→                  {b.name}
+   228→   228→                </h1>
+   229→   229→                {b.tagline && (
+   230→   230→                  <p className="mt-1.5 max-w-xl text-cream/70 sm:text-lg">{b.tagline}</p>
+   231→   231→                )}
+   232→   232→
+   233→   233→                <div className="mt-4 flex flex-wrap items-center gap-2">
+   234→   234→                  {b.verificationStatus === "VERIFIED" && <VerifiedBadge status="VERIFIED" size="md" />}
+   235→   235→                  {b.verificationStatus === "PENDING" && <VerifiedBadge status="PENDING" size="md" />}
+   236→   236→                  {b.bbbeeLevel && <BBBEEBadge level={b.bbbeeLevel} />}
+   237→   237→                  {b.featured && <Pill tone="cream">Featured</Pill>}
+   238→   238→                  {b.industry?.name && (
+   239→   239→                    <Pill tone="cream">
+   240→   240→                      <Building2 className="h-3 w-3" />
+   241→   241→                      {b.industry.name}
+   242→   242→                    </Pill>
+   243→   243→                  )}
+   244→   244→                  {(b.city || b.province) && (
+   245→   245→                    <Pill tone="cream">
+   246→   246→                      <MapPin className="h-3 w-3" />
+   247→   247→                      {provinceCity(b)}
+   248→   248→                    </Pill>
+   249→   249→                  )}
+   250→   250→                </div>
+   251→   251→              </div>
+   252→   252→            </div>
+   253→   253→
+   254→   254→            {/* CTA stack (desktop) */}
+   255→   255→            <div className="flex flex-col gap-2 lg:items-end">
+   256→   256→              <div className="flex flex-wrap gap-2 lg:justify-end">
+   257→   257→                {websiteHref && (
+   258→   258→                  <Button asChild className="bg-cream text-ink hover:bg-cream/90">
+   259→   259→                    <a href={websiteHref} target="_blank" rel="noreferrer noopener">
+   260→   260→                      <Globe className="h-4 w-4" /> Website
+   261→   261→                      <ExternalLink className="h-3 w-3 opacity-60" />
+   262→   262→                    </a>
+   263→   263→                  </Button>
+   264→   264→                )}
+   265→   265→                {b.email && (
+   266→   266→                  <Button asChild variant="outline" className="border-cream/20 bg-transparent text-cream hover:bg-cream/10 hover:text-cream">
+   267→   267→                    <a href={`mailto:${b.email}`}>
+   268→   268→                      <Mail className="h-4 w-4" /> Email
+   269→   269→                    </a>
+   270→   270→                  </Button>
+   271→   271→                )}
+   272→   272→                {whatsappHref && (
+   273→   273→                  <Button asChild className="bg-sage text-cream hover:bg-sage/90">
+   274→   274→                    <a href={whatsappHref} target="_blank" rel="noreferrer noopener">
+   275→   275→                      <MessageCircle className="h-4 w-4" /> WhatsApp
+   276→   276→                    </a>
+   277→   277→                  </Button>
+   278→   278→                )}
+   279→   279→                <Button variant="outline" onClick={shareProfile} className="border-cream/20 bg-transparent text-cream hover:bg-cream/10 hover:text-cream">
+   280→   280→                  <Share2 className="h-4 w-4" />
+   281→   281→                  <span className="hidden sm:inline">Share</span>
+   282→   282→                </Button>
+   283→   283→              </div>
+   284→   284→            </div>
+   285→   285→          </div>
+   286→   286→        </div>
+   287→   287→      </section>
+   288→   288→
+   289→   289→      {/* ===== PROFILE COMPLETION BAR (owner only) ===== */}
+   290→   290→      {b.isOwner && (
+   291→   291→        <section className="border-b border-border bg-cream-grain">
+   292→   292→          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+   293→   293→            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+   294→   294→              <div className="flex-1">
+   295→   295→                <div className="flex items-center justify-between gap-3">
+   296→   296→                  <p className="text-sm font-medium">
+   297→   297→                    Your profile is {b.profileCompletion}% complete
+   298→   298→                  </p>
+   299→   299→                  <span className="text-xs text-muted-foreground">
+   300→   300→                    {b.profileCompletion >= 80 ? "Looking great!" : "Add more details to rank higher in search."}
+   301→   301→                  </span>
+   302→   302→                </div>
+   303→   303→                <Progress value={b.profileCompletion} className="mt-2 h-1.5" />
+   304→   304→              </div>
+   305→   305→              <Button
+   306→   306→                variant="outline"
+   307→   307→                size="sm"
+   308→   308→                onClick={() => navigate({ name: "dashboard-business", id: b.id })}
+   309→   309→              >
+   310→   310→                Edit business
+   311→   311→              </Button>
+   312→   312→            </div>
+   313→   313→          </div>
+   314→   314→        </section>
+   315→   315→      )}
+   316→   316→
+   317→   317→      {/* ===== BODY ===== */}
+   318→   318→      <section className="bg-background">
+   319→   319→        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+   320→   320→          <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+   321→   321→            {/* ===== MAIN COLUMN ===== */}
+   322→   322→            <div className="flex flex-col gap-6">
+   323→   323→              {/* About */}
+   324→   324→              <Card>
+   325→   325→                <CardTitle>About</CardTitle>
+   326→   326→                <Separator className="mb-4" />
+   327→   327→                {b.description ? (
+   328→   328→                  <div className="space-y-3 text-sm leading-relaxed text-foreground/80">
+   329→   329→                    {b.description.split(/\n{2,}|\r\n{2,}/).map((para, i) => (
+   330→   330→                      <p key={i}>{para}</p>
+   331→   331→                    ))}
+   332→   332→                  </div>
+   333→   333→                ) : (
+   334→   334→                  <p className="text-sm italic text-muted-foreground">
+   335→   335→                    This business hasn't added a description yet.
+   336→   336→                  </p>
+   337→   337→                )}
+   338→   338→              </Card>
+   339→   339→
+   340→   340→              {/* Services */}
+   341→   341→              {b.services && b.services.length > 0 && (
+   342→   342→                <Card>
+   343→   343→                  <CardTitle>Services</CardTitle>
+   344→   344→                  <Separator className="mb-4" />
+   345→   345→                  <div className="flex flex-wrap gap-2">
+   346→   346→                    {b.services.map((s) => (
+   347→   347→                      <button
+   348→   348→                        key={s.id}
+   349→   349→                        type="button"
+   350→   350→                        onClick={() => searchByTag(s.name)}
+   351→   351→                        className="transition-transform hover:-translate-y-0.5"
+   352→   352→                      >
+   353→   353→                        <Pill tone="neutral" className="cursor-pointer hover:border-foreground/40">
+   354→   354→                          {s.name}
+   355→   355→                        </Pill>
+   356→   356→                      </button>
+   357→   357→                    ))}
+   358→   358→                  </div>
+   359→   359→                </Card>
+   360→   360→              )}
+   361→   361→
+   362→   362→              {/* Products */}
+   363→   363→              {b.products && b.products.length > 0 && (
+   364→   364→                <Card>
+   365→   365→                  <CardTitle>Products</CardTitle>
+   366→   366→                  <Separator className="mb-4" />
+   367→   367→                  <div className="flex flex-wrap gap-2">
+   368→   368→                    {b.products.map((p) => (
+   369→   369→                      <button
+   370→   370→                        key={p.id}
+   371→   371→                        type="button"
+   372→   372→                        onClick={() => searchByTag(p.name)}
+   373→   373→                        className="transition-transform hover:-translate-y-0.5"
+   374→   374→                      >
+   375→   375→                        <Pill tone="sage" className="cursor-pointer hover:border-sage/60">
+   376→   376→                          {p.name}
+   377→   377→                        </Pill>
+   378→   378→                      </button>
+   379→   379→                    ))}
+   380→   380→                  </div>
+   381→   381→                </Card>
+   382→   382→              )}
+   383→   383→
+   384→   384→              {/* Reviews */}
+   385→   385→              <Card>
+   386→   386→                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   387→   387→                  <CardTitle className="mb-0">Reviews</CardTitle>
+   388→   388→                  {!showReviewForm && (
+   389→   389→                    <Button
+   390→   390→                      variant="outline"
+   391→   391→                      size="sm"
+   392→   392→                      onClick={() => {
+   393→   393→                        if (!authUser) {
+   394→   394→                          navigate({ name: "login" });
+   395→   395→                          return;
+   396→   396→                        }
+   397→   397→                        setShowReviewForm(true);
+   398→   398→                      }}
+   399→   399→                    >
+   400→   400→                      <Plus className="h-4 w-4" /> Leave a review
+   401→   401→                    </Button>
+   402→   402→                  )}
+   403→   403→                </div>
+   404→   404→                <Separator className="mb-4 mt-4" />
+   405→   405→
+   406→   406→                {/* summary */}
+   407→   407→                <div className="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-cream-grain/60 px-4 py-3">
+   408→   408→                  <div className="font-display text-3xl text-ink">
+   409→   409→                    {b.rating > 0 ? b.rating.toFixed(1) : "—"}
+   410→   410→                  </div>
+   411→   411→                  <div className="flex flex-col">
+   412→   412→                    <StarRating rating={b.rating} showValue={false} />
+   413→   413→                    <span className="mt-0.5 text-xs text-muted-foreground">
+   414→   414→                      Based on {formatNumber(b.reviewCount)} {b.reviewCount === 1 ? "review" : "reviews"}
+   415→   415→                    </span>
+   416→   416→                  </div>
+   417→   417→                </div>
+   418→   418→
+   419→   419→                {/* inline review form */}
+   420→   420→                {showReviewForm && (
+   421→   421→                  <div className="mb-5 rounded-lg border border-border bg-cream-grain/40 p-4">
+   422→   422→                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+   423→   423→                      <label className="text-sm font-medium">Your rating</label>
+   424→   424→                      <Select value={String(reviewRating)} onValueChange={(v) => setReviewRating(Number(v))}>
+   425→   425→                        <SelectTrigger className="h-9 w-[160px]">
+   426→   426→                          <SelectValue />
+   427→   427→                        </SelectTrigger>
+   428→   428→                        <SelectContent>
+   429→   429→                          {[5, 4, 3, 2, 1].map((n) => (
+   430→   430→                            <SelectItem key={n} value={String(n)}>
+   431→   431→                              {n} {n === 1 ? "star" : "stars"}
+   432→   432→                            </SelectItem>
+   433→   433→                          ))}
+   434→   434→                        </SelectContent>
+   435→   435→                      </Select>
+   436→   436→                      <div className="flex items-center">
+   437→   437→                        <StarRating rating={reviewRating} />
+   438→   438→                      </div>
+   439→   439→                    </div>
+   440→   440→                    <Textarea
+   441→   441→                      value={reviewText}
+   442→   442→                      onChange={(e) => setReviewText(e.target.value)}
+   443→   443→                      placeholder="Share your experience working with this business…"
+   444→   444→                      className="min-h-24"
+   445→   445→                    />
+   446→   446→                    <div className="mt-2">
+   447→   447→                      <Input
+   448→   448→                        value={reviewCompany}
+   449→   449→                        onChange={(e) => setReviewCompany(e.target.value)}
+   450→   450→                        placeholder="Your company (optional)"
+   451→   451→                        className="h-9"
+   452→   452→                      />
+   453→   453→                    </div>
+   454→   454→                    <div className="mt-3 flex items-center gap-2">
+   455→   455→                      <Button onClick={submitReview} disabled={submittingReview} size="sm">
+   456→   456→                        {submittingReview ? "Posting…" : "Post review"}
+   457→   457→                      </Button>
+   458→   458→                      <Button
+   459→   459→                        variant="ghost"
+   460→   460→                        size="sm"
+   461→   461→                        onClick={() => setShowReviewForm(false)}
+   462→   462→                        disabled={submittingReview}
+   463→   463→                      >
+   464→   464→                        Cancel
+   465→   465→                      </Button>
+   466→   466→                    </div>
+   467→   467→                  </div>
+   468→   468→                )}
+   469→   469→
+   470→   470→                {/* review list */}
+   471→   471→                {reviews.length === 0 ? (
+   472→   472→                  <EmptyState
+   473→   473→                    title="No reviews yet"
+   474→   474→                    description="Be the first to share your experience with this business."
+   475→   475→                    className="border-transparent bg-transparent py-8"
+   476→   476→                  />
+   477→   477→                ) : (
+   478→   478→                  <ul className="flex flex-col gap-4">
+   479→   479→                    {reviews.slice(0, 12).map((r) => (
+   480→   480→                      <li key={r.id} className="rounded-lg border border-border bg-card/60 p-4">
+   481→   481→                        <div className="flex items-start justify-between gap-3">
+   482→   482→                          <div>
+   483→   483→                            <p className="text-sm font-semibold">{r.reviewerName}</p>
+   484→   484→                            {r.reviewerCompany && (
+   485→   485→                              <p className="text-xs text-muted-foreground">{r.reviewerCompany}</p>
+   486→   486→                            )}
+   487→   487→                          </div>
+   488→   488→                          <span className="text-xs text-muted-foreground">{timeAgo(r.createdAt)}</span>
+   489→   489→                        </div>
+   490→   490→                        <div className="mt-2">
+   491→   491→                          <StarRating rating={r.rating} size={12} />
+   492→   492→                        </div>
+   493→   493→                        <p className="mt-2 text-sm leading-relaxed text-foreground/80">{r.review}</p>
+   494→   494→                      </li>
+   495→   495→                    ))}
+   496→   496→                  </ul>
+   497→   497→                )}
+   498→   498→              </Card>
+   499→   499→            </div>
+   500→   500→
+   501→   501→            {/* ===== SIDEBAR ===== */}
+   502→   502→            <aside className="flex flex-col gap-6">
+   503→   503→              <div className="sticky top-24 flex flex-col gap-6">
+   504→   504→                {/* Business Information */}
+   505→   505→                <Card>
+   506→   506→                  <CardTitle>Business Information</CardTitle>
+   507→   507→                  <Separator className="mb-4" />
+   508→   508→                  <dl className="flex flex-col gap-3 text-sm">
+   509→   509→                    <InfoRow label="Year founded" value={yearFounded != null ? String(yearFounded) : null} />
+   510→   510→                    <InfoRow label="Business size" value={sizeLabel(b.businessSize)} />
+   511→   511→                    <InfoRow label="Employees" value={b.employeeCount} />
+   512→   512→                    <InfoRow label="Annual revenue" value={b.annualRevenue} />
+   513→   513→                    <InfoRow label="CIPC number" value={b.cipcNumber} />
+   514→   514→                    <InfoRow label="B-BBEE level" value={b.bbbeeLevel} />
+   515→   515→                  </dl>
+   516→   516→                </Card>
+   517→   517→
+   518→   518→                {/* Contact */}
+   519→   519→                <Card>
+   520→   520→                  <CardTitle>Contact</CardTitle>
+   521→   521→                  <Separator className="mb-4" />
+   522→   522→                  <ul className="flex flex-col gap-2.5 text-sm">
+   523→   523→                    {websiteHref && (
+   524→   524→                      <ContactRow icon={<Globe className="h-4 w-4" />} label="Website">
+   525→   525→                        <a
+   526→   526→                          href={websiteHref}
+   527→   527→                          target="_blank"
+   528→   528→                          rel="noreferrer noopener"
+   529→   529→                          className="link-underline inline-flex items-center gap-1 text-foreground/80 hover:text-ink"
+   530→   530→                        >
+   531→   531→                          {prettyDomain(websiteHref)}
+   532→   532→                          <ExternalLink className="h-3 w-3 opacity-50" />
+   533→   533→                        </a>
+   534→   534→                      </ContactRow>
+   535→   535→                    )}
+   536→   536→                    {b.email && (
+   537→   537→                      <ContactRow icon={<Mail className="h-4 w-4" />} label="Email">
+   538→   538→                        <a href={`mailto:${b.email}`} className="link-underline text-foreground/80 hover:text-ink">
+   539→   539→                          {b.email}
+   540→   540→                        </a>
+   541→   541→                      </ContactRow>
+   542→   542→                    )}
+   543→   543→                    {b.phone && (
+   544→   544→                      <ContactRow icon={<Phone className="h-4 w-4" />} label="Phone">
+   545→   545→                        <a href={`tel:${b.phone.replace(/[^0-9+]/g, "")}`} className="link-underline text-foreground/80 hover:text-ink">
+   546→   546→                          {b.phone}
+   547→   547→                        </a>
+   548→   548→                      </ContactRow>
+   549→   549→                    )}
+   550→   550→                    {b.address && (
+   551→   551→                      <ContactRow icon={<MapPin className="h-4 w-4" />} label="Address">
+   552→   552→                        <span className="text-foreground/80">{b.address}</span>
+   553→   553→                      </ContactRow>
+   554→   554→                    )}
+   555→   555→                    {whatsappHref && (
+   556→   556→                      <li className="pt-1">
+   557→   557→                        <Button asChild size="sm" className="w-full bg-sage text-cream hover:bg-sage/90">
+   558→   558→                          <a href={whatsappHref} target="_blank" rel="noreferrer noopener">
+   559→   559→                            <MessageCircle className="h-4 w-4" /> Message on WhatsApp
+   560→   560→                          </a>
+   561→   561→                        </Button>
+   562→   562→                      </li>
+   563→   563→                    )}
+   564→   564→                  </ul>
+   565→   565→                </Card>
+   566→   566→
+   567→   567→                {/* Trust signals */}
+   568→   568→                <Card>
+   569→   569→                  <CardTitle>Trust Signals</CardTitle>
+   570→   570→                  <Separator className="mb-4" />
+   571→   571→                  <ul className="flex flex-col gap-3 text-sm">
+   572→   572→                    <TrustRow
+   573→   573→                      icon={<ShieldCheck className="h-4 w-4 text-sage" />}
+   574→   574→                      label="Verification"
+   575→   575→                      value={<VerifiedBadge status={b.verificationStatus} size="sm" />}
+   576→   576→                    />
+   577→   577→                    {b.bbbeeLevel && (
+   578→   578→                      <TrustRow
+   579→   579→                        icon={<CheckCircle2 className="h-4 w-4 text-sage" />}
+   580→   580→                        label="B-BBEE"
+   581→   581→                        value={<BBBEEBadge level={b.bbbeeLevel} />}
+   582→   582→                      />
+   583→   583→                    )}
+   584→   584→                    {yearsInBusiness != null && yearsInBusiness > 0 && (
+   585→   585→                      <TrustRow
+   586→   586→                        icon={<Calendar className="h-4 w-4 text-sage" />}
+   587→   587→                        label="Years in business"
+   588→   588→                        value={<span className="text-foreground/80">{yearsInBusiness}+ year{yearsInBusiness === 1 ? "" : "s"}</span>}
+   589→   589→                      />
+   590→   590→                    )}
+   591→   591→                    <TrustRow
+   592→   592→                      icon={<Eye className="h-4 w-4 text-sage" />}
+   593→   593→                      label="Profile views"
+   594→   594→                      value={<span className="text-foreground/80">{formatNumber(b.views)}</span>}
+   595→   595→                    />
+   596→   596→                    <TrustRow
+   597→   597→                      icon={<Star className="h-4 w-4 text-sage" />}
+   598→   598→                      label="Reviews"
+   599→   599→                      value={<span className="text-foreground/80">{formatNumber(b.reviewCount)}</span>}
+   600→   600→                    />
+   601→   601→                  </ul>
+   602→   602→                </Card>
+   603→   603→              </div>
+   604→   604→            </aside>
+   605→   605→          </div>
+   606→   606→        </div>
+   607→   607→      </section>
+   608→   608→    </div>
+   609→   609→  );
+   610→   610→}
+   611→   611→
+   612→   612→// ---------- sub-components ----------
+   613→   613→
+   614→   614→function Card({ children }: { children: React.ReactNode }) {
+   615→   615→  return (
+   616→   616→    <div className="rounded-xl border border-border bg-card p-6">{children}</div>
+   617→   617→  );
+   618→   618→}
+   619→   619→
+   620→   620→function CardTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+   621→   621→  return (
+   622→   622→    <h2 className={`font-display text-xl tracking-tight ${className ?? ""}`}>{children}</h2>
+   623→   623→  );
+   624→   624→}
+   625→   625→
+   626→   626→function InfoRow({ label, value }: { label: string; value: string | null }) {
+   627→   627→  if (!value) return null;
+   628→   628→  return (
+   629→   629→    <div className="flex items-start justify-between gap-4">
+   630→   630→      <dt className="text-muted-foreground">{label}</dt>
+   631→   631→      <dd className="text-right font-medium text-foreground/85">{value}</dd>
+   632→   632→    </div>
+   633→   633→  );
+   634→   634→}
+   635→   635→
+   636→   636→function ContactRow({
+   637→   637→  icon,
+   638→   638→  label,
+   639→   639→  children,
+   640→   640→}: {
+   641→   641→  icon: React.ReactNode;
+   642→   642→  label: string;
+   643→   643→  children: React.ReactNode;
+   644→   644→}) {
+   645→   645→  return (
+   646→   646→    <li className="flex items-center gap-3">
+   647→   647→      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-foreground/5 text-muted-foreground">
+   648→   648→        {icon}
+   649→   649→      </span>
+   650→   650→      <div className="flex min-w-0 flex-col">
+   651→   651→        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+   652→   652→        <div className="truncate text-sm">{children}</div>
+   653→   653→      </div>
+   654→   654→    </li>
+   655→   655→  );
+   656→   656→}
+   657→   657→
+   658→   658→function TrustRow({
+   659→   659→  icon,
+   660→   660→  label,
+   661→   661→  value,
+   662→   662→}: {
+   663→   663→  icon: React.ReactNode;
+   664→   664→  label: string;
+   665→   665→  value: React.ReactNode;
+   666→   666→}) {
+   667→   667→  return (
+   668→   668→    <li className="flex items-center justify-between gap-3">
+   669→   669→      <span className="inline-flex items-center gap-2 text-muted-foreground">
+   670→   670→        {icon}
+   671→   671→        {label}
+   672→   672→      </span>
+   673→   673→      <div className="text-right">{value}</div>
+   674→   674→    </li>
+   675→   675→  );
+   676→   676→}
+   677→   677→
+   678→   678→// ---------- skeleton ----------
+   679→   679→
+   680→   680→function ProfileSkeleton() {
+   681→   681→  return (
+   682→   682→    <div className="flex flex-col">
+   683→   683→      <section className="bg-ink-grain text-cream">
+   684→   684→        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+   685→   685→          <div className="mb-6 h-4 w-24 animate-pulse rounded bg-cream/20" />
+   686→   686→          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+   687→   687→            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+   688→   688→              <Skeleton className="h-20 w-20 rounded-xl bg-cream/15" />
+   689→   689→              <div className="space-y-3">
+   690→   690→                <Skeleton className="h-9 w-72 rounded bg-cream/15" />
+   691→   691→                <Skeleton className="h-5 w-96 rounded bg-cream/15" />
+   692→   692→                <div className="flex gap-2">
+   693→   693→                  {Array.from({ length: 4 }).map((_, i) => (
+   694→   694→                    <Skeleton key={i} className="h-6 w-20 rounded-full bg-cream/15" />
+   695→   695→                  ))}
+   696→   696→                </div>
+   697→   697→              </div>
+   698→   698→            </div>
+   699→   699→            <div className="flex gap-2">
+   700→   700→              <Skeleton className="h-9 w-28 rounded bg-cream/15" />
+   701→   701→              <Skeleton className="h-9 w-28 rounded bg-cream/15" />
+   702→   702→            </div>
+   703→   703→          </div>
+   704→   704→        </div>
+   705→   705→      </section>
+   706→   706→      <section className="bg-background">
+   707→   707→        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+   708→   708→          <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+   709→   709→            <div className="flex flex-col gap-6">
+   710→   710→              <SkeletonCard />
+   711→   711→              <SkeletonCard />
+   712→   712→              <SkeletonCard />
+   713→   713→            </div>
+   714→   714→            <div className="flex flex-col gap-6">
+   715→   715→              <SkeletonCard />
+   716→   716→              <SkeletonCard />
+   717→   717→            </div>
+   718→   718→          </div>
+   719→   719→        </div>
+   720→   720→      </section>
+   721→   721→    </div>
+   722→   722→  );
+   723→   723→}
+   724→   724→
+   725→   725→function SkeletonCard() {
+   726→   726→  return (
+   727→   727→    <div className="rounded-xl border border-border bg-card p-6">
+   728→   728→      <Skeleton className="mb-4 h-6 w-40" />
+   729→   729→      <div className="space-y-2.5">
+   730→   730→        <Skeleton className="h-3 w-full" />
+   731→   731→        <Skeleton className="h-3 w-full" />
+   732→   732→        <Skeleton className="h-3 w-2/3" />
+   733→   733→      </div>
+   734→   734→    </div>
+   735→   735→  );
+   736→   736→}
+   737→   737→
+   738→   738→// ---------- helpers ----------
+   739→   739→
+   740→   740→function sizeLabel(size: string | null): string | null {
+   741→   741→  if (!size) return null;
+   742→   742→  const found = (
+   743→   743→    [
+   744→   744→      { value: "micro", label: "Micro (1–10)" },
+   745→   745→      { value: "small", label: "Small (11–50)" },
+   746→   746→      { value: "medium", label: "Medium (51–200)" },
+   747→   747→      { value: "large", label: "Large (200+)" },
+   748→   748→    ] as const
+   749→   749→  ).find((s) => s.value === size);
+   750→   750→  return found ? found.label : size.charAt(0).toUpperCase() + size.slice(1);
+   751→   751→}
+   752→   752→
+   753→   753→function prettyDomain(url: string): string {
+   754→   754→  try {
+   755→   755→    const u = new URL(url);
+   756→   756→    return u.hostname.replace(/^www\./, "");
+   757→   757→  } catch {
+   758→   758→    return url;
+   759→   759→  }
+   760→   760→}
+   761→   761→

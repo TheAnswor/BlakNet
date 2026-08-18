@@ -20,6 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/blaknet/section";
 import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
 import { StarRating } from "@/components/blaknet/star-rating";
+import { FollowButton } from "@/components/blaknet/follow-button";
+import { cn } from "@/lib/utils";
 import type { Business, BusinessReview } from "@/lib/types";
 import { formatNumber, provinceCity, timeAgo } from "@/lib/format";
 import {
@@ -39,6 +41,10 @@ import {
   Frown,
   ArrowLeft,
   CheckCircle2,
+  Users,
+  Banknote,
+  FileText,
+  Award,
 } from "lucide-react";
 
 // ---------- types ----------
@@ -255,7 +261,7 @@ function BusinessProfile({ slug }: { slug: string }) {
             <div className="flex flex-col gap-2 lg:items-end">
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 {websiteHref && (
-                  <Button asChild className="bg-cream text-ink hover:bg-cream/90">
+                  <Button asChild className="btn-lift h-10 bg-cream px-4 text-ink shadow-lg hover:bg-cream/90">
                     <a href={websiteHref} target="_blank" rel="noreferrer noopener">
                       <Globe className="h-4 w-4" /> Website
                       <ExternalLink className="h-3 w-3 opacity-60" />
@@ -263,20 +269,38 @@ function BusinessProfile({ slug }: { slug: string }) {
                   </Button>
                 )}
                 {b.email && (
-                  <Button asChild variant="outline" className="border-cream/20 bg-transparent text-cream hover:bg-cream/10 hover:text-cream">
+                  <Button asChild variant="outline" className="h-10 border-cream/25 bg-transparent px-4 text-cream hover:bg-cream/10 hover:text-cream">
                     <a href={`mailto:${b.email}`}>
                       <Mail className="h-4 w-4" /> Email
                     </a>
                   </Button>
                 )}
                 {whatsappHref && (
-                  <Button asChild className="bg-sage text-cream hover:bg-sage/90">
+                  <Button asChild className={cn(
+                    "btn-lift h-10 px-4",
+                    websiteHref
+                      ? "border border-sage/40 bg-sage/10 text-cream hover:bg-sage/20"
+                      : "bg-sage text-cream shadow-lg hover:bg-sage/90",
+                  )}>
                     <a href={whatsappHref} target="_blank" rel="noreferrer noopener">
                       <MessageCircle className="h-4 w-4" /> WhatsApp
                     </a>
                   </Button>
                 )}
-                <Button variant="outline" onClick={shareProfile} className="border-cream/20 bg-transparent text-cream hover:bg-cream/10 hover:text-cream">
+                {b.isOwner ? (
+                  <span className="inline-flex h-10 items-center gap-1.5 rounded-md border border-cream/20 bg-cream/5 px-4 text-sm font-medium text-cream/80">
+                    <Building2 className="h-4 w-4" /> Your business
+                  </span>
+                ) : (
+                  <FollowButton
+                    businessId={b.id}
+                    businessName={b.name}
+                    initialFollowing={b.following ?? false}
+                    followerCount={b.followerCount ?? 0}
+                    tone="onDark"
+                  />
+                )}
+                <Button variant="ghost" onClick={shareProfile} className="h-10 px-4 text-cream/70 hover:bg-cream/10 hover:text-cream">
                   <Share2 className="h-4 w-4" />
                   <span className="hidden sm:inline">Share</span>
                 </Button>
@@ -316,12 +340,12 @@ function BusinessProfile({ slug }: { slug: string }) {
 
       {/* ===== BODY ===== */}
       <section className="bg-background">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 pb-10 pt-2 sm:px-6 sm:pt-4 lg:px-8 lg:pb-10">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             {/* ===== MAIN COLUMN ===== */}
             <div className="flex flex-col gap-6">
-              {/* About */}
-              <Card>
+              {/* About — first content card, overlaps the dark header for a layered "rising out of the dark" effect */}
+              <Card className="-mt-4 sm:-mt-8 relative z-10 shadow-xl">
                 <CardTitle>About</CardTitle>
                 <Separator className="mb-4" />
                 {b.description ? (
@@ -337,54 +361,82 @@ function BusinessProfile({ slug }: { slug: string }) {
                 )}
               </Card>
 
-              {/* Services */}
-              {b.services && b.services.length > 0 && (
+              {/* Services & Products — single card with two clearly-titled subsections; pills are clickable (navigate to directory search) */}
+              {((b.services && b.services.length > 0) || (b.products && b.products.length > 0)) && (
                 <Card>
-                  <CardTitle>Services</CardTitle>
+                  <CardTitle>Services & Products</CardTitle>
                   <Separator className="mb-4" />
-                  <div className="flex flex-wrap gap-2">
-                    {b.services.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => searchByTag(s.name)}
-                        className="transition-transform hover:-translate-y-0.5"
-                      >
-                        <Pill tone="neutral" className="cursor-pointer hover:border-foreground/40">
-                          {s.name}
-                        </Pill>
-                      </button>
-                    ))}
-                  </div>
-                </Card>
-              )}
 
-              {/* Products */}
-              {b.products && b.products.length > 0 && (
-                <Card>
-                  <CardTitle>Products</CardTitle>
-                  <Separator className="mb-4" />
-                  <div className="flex flex-wrap gap-2">
-                    {b.products.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => searchByTag(p.name)}
-                        className="transition-transform hover:-translate-y-0.5"
-                      >
-                        <Pill tone="sage" className="cursor-pointer hover:border-sage/60">
-                          {p.name}
-                        </Pill>
-                      </button>
-                    ))}
-                  </div>
+                  {b.services && b.services.length > 0 && (
+                    <div className={b.products && b.products.length > 0 ? "mb-6" : ""}>
+                      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        Services
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {b.services.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => searchByTag(s.name)}
+                            className="transition-transform hover:-translate-y-0.5"
+                          >
+                            <Pill
+                              tone="neutral"
+                              className="cursor-pointer transition-colors hover:bg-ink hover:text-cream hover:border-ink"
+                            >
+                              {s.name}
+                            </Pill>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {b.products && b.products.length > 0 && (
+                    <div>
+                      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        Products
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {b.products.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => searchByTag(p.name)}
+                            className="transition-transform hover:-translate-y-0.5"
+                          >
+                            <Pill
+                              tone="sage"
+                              className="cursor-pointer transition-colors hover:bg-ink hover:text-cream hover:border-ink"
+                            >
+                              {p.name}
+                            </Pill>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </Card>
               )}
 
               {/* Reviews */}
               <Card>
+                {/* Header: rating summary + Leave-a-review CTA */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="mb-0">Reviews</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="font-display text-4xl leading-none text-ink">
+                      {b.rating > 0 ? b.rating.toFixed(1) : "—"}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        Reviews
+                      </span>
+                      <StarRating rating={b.rating} showValue={false} />
+                      <span className="mt-0.5 text-xs text-muted-foreground">
+                        ({formatNumber(b.reviewCount)} {b.reviewCount === 1 ? "review" : "reviews"})
+                      </span>
+                    </div>
+                  </div>
                   {!showReviewForm && (
                     <Button
                       variant="outline"
@@ -402,19 +454,6 @@ function BusinessProfile({ slug }: { slug: string }) {
                   )}
                 </div>
                 <Separator className="mb-4 mt-4" />
-
-                {/* summary */}
-                <div className="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-cream-grain/60 px-4 py-3">
-                  <div className="font-display text-3xl text-ink">
-                    {b.rating > 0 ? b.rating.toFixed(1) : "—"}
-                  </div>
-                  <div className="flex flex-col">
-                    <StarRating rating={b.rating} showValue={false} />
-                    <span className="mt-0.5 text-xs text-muted-foreground">
-                      Based on {formatNumber(b.reviewCount)} {b.reviewCount === 1 ? "review" : "reviews"}
-                    </span>
-                  </div>
-                </div>
 
                 {/* inline review form */}
                 {showReviewForm && (
@@ -477,10 +516,13 @@ function BusinessProfile({ slug }: { slug: string }) {
                 ) : (
                   <ul className="flex flex-col gap-4">
                     {reviews.slice(0, 12).map((r) => (
-                      <li key={r.id} className="rounded-lg border border-border bg-card/60 p-4">
+                      <li
+                        key={r.id}
+                        className="rounded-lg border border-border border-l-2 border-l-sage bg-card/60 p-4"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold">{r.reviewerName}</p>
+                            <p className="text-sm font-medium text-foreground">{r.reviewerName}</p>
                             {r.reviewerCompany && (
                               <p className="text-xs text-muted-foreground">{r.reviewerCompany}</p>
                             )}
@@ -506,12 +548,12 @@ function BusinessProfile({ slug }: { slug: string }) {
                   <CardTitle>Business Information</CardTitle>
                   <Separator className="mb-4" />
                   <dl className="flex flex-col gap-3 text-sm">
-                    <InfoRow label="Year founded" value={yearFounded != null ? String(yearFounded) : null} />
-                    <InfoRow label="Business size" value={sizeLabel(b.businessSize)} />
-                    <InfoRow label="Employees" value={b.employeeCount} />
-                    <InfoRow label="Annual revenue" value={b.annualRevenue} />
-                    <InfoRow label="CIPC number" value={b.cipcNumber} />
-                    <InfoRow label="B-BBEE level" value={b.bbbeeLevel} />
+                    <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label="Year founded" value={yearFounded != null ? String(yearFounded) : null} />
+                    <InfoRow icon={<Building2 className="h-3.5 w-3.5" />} label="Business size" value={sizeLabel(b.businessSize)} />
+                    <InfoRow icon={<Users className="h-3.5 w-3.5" />} label="Employees" value={b.employeeCount} />
+                    <InfoRow icon={<Banknote className="h-3.5 w-3.5" />} label="Annual revenue" value={b.annualRevenue} />
+                    <InfoRow icon={<FileText className="h-3.5 w-3.5" />} label="CIPC number" value={b.cipcNumber} />
+                    <InfoRow icon={<Award className="h-3.5 w-3.5" />} label="B-BBEE level" value={b.bbbeeLevel} />
                   </dl>
                 </Card>
 
@@ -611,9 +653,9 @@ function BusinessProfile({ slug }: { slug: string }) {
 
 // ---------- sub-components ----------
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-6">{children}</div>
+    <div className={cn("rounded-xl border border-border bg-card p-6", className)}>{children}</div>
   );
 }
 
@@ -623,12 +665,15 @@ function CardTitle({ children, className }: { children: React.ReactNode; classNa
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string | null }) {
+function InfoRow({ label, value, icon }: { label: string; value: string | null; icon?: React.ReactNode }) {
   if (!value) return null;
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium text-foreground/85">{value}</dd>
+      <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {icon && <span className="text-foreground/40">{icon}</span>}
+        {label}
+      </dt>
+      <dd className="text-right text-sm font-semibold text-foreground">{value}</dd>
     </div>
   );
 }
@@ -644,12 +689,12 @@ function ContactRow({
 }) {
   return (
     <li className="flex items-center gap-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-foreground/5 text-muted-foreground">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-foreground/5 text-foreground/40">
         {icon}
       </span>
       <div className="flex min-w-0 flex-col">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
-        <div className="truncate text-sm">{children}</div>
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+        <div className="truncate text-sm font-semibold text-foreground">{children}</div>
       </div>
     </li>
   );

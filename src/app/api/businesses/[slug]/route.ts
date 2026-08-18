@@ -26,7 +26,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     where: { businessId: biz.id, verificationStatus: "APPROVED" },
     _avg: { rating: true },
   });
+  const followerCount = await db.businessFollow.count({ where: { businessId: biz.id } });
   const user = await getSessionUser();
+  const following = user
+    ? !!(await db.businessFollow.findUnique({
+        where: { businessId_userId: { businessId: biz.id, userId: user.id } },
+      }))
+    : false;
   const isOwner = user?.id === biz.ownerId;
 
   return NextResponse.json({
@@ -63,7 +69,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
       rating: reviewsAgg._avg.rating ?? 0,
       postCount: biz._count.posts,
       eventCount: biz._count.events,
+      followerCount: biz._count.follows,
       isOwner,
+      following,
     },
   });
 }

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
 import { api, qs } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,9 +24,9 @@ import {
 import { SectionHeading, EmptyState } from "@/components/blaknet/section";
 import { BusinessCard, BusinessCardSkeleton } from "@/components/blaknet/business-card";
 import { PROVINCES, BUSINESS_SIZES, BBBEE_LEVELS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import type { Business, Industry } from "@/lib/types";
 import {
-  Search,
   SlidersHorizontal,
   MapPin,
   X,
@@ -244,84 +243,106 @@ export function DirectoryView() {
   const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
   // ---------- sidebar contents (reused for desktop + mobile sheet) ----------
-  const sidebar = (
-    <div className="flex flex-col gap-6">
-      <FilterSection title="Industry">
-        {industries.length === 0 ? (
-          <div className="space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-5 w-full" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {industries.map((i) => (
+  // Wrapped in a single sticky card (per VLM feedback): heading + separator +
+  // all filter sections + Clear-all button.
+  const filterCard = (
+    <div className="rounded-xl border border-border bg-card p-5 card-soft lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto scroll-elegant">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-display text-xl tracking-tight">Filters</h2>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-[11px] font-medium uppercase tracking-wider text-sage hover:underline"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+      <Separator className="mb-5" />
+      <div className="flex flex-col gap-6">
+        <FilterSection title="Industry">
+          {industries.length === 0 ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-5 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {industries.map((i) => (
+                <FilterCheckbox
+                  key={i.id}
+                  label={i.name}
+                  count={i.count}
+                  checked={filters.industry.includes(i.slug)}
+                  onToggle={() => toggleArrayFilter("industry", i.slug)}
+                />
+              ))}
+            </div>
+          )}
+        </FilterSection>
+
+        <FilterSection title="Province">
+          <div className="space-y-1">
+            {PROVINCES.map((p) => (
               <FilterCheckbox
-                key={i.id}
-                label={i.name}
-                count={i.count}
-                checked={filters.industry.includes(i.slug)}
-                onToggle={() => toggleArrayFilter("industry", i.slug)}
+                key={p}
+                label={p}
+                checked={filters.province.includes(p)}
+                onToggle={() => toggleArrayFilter("province", p)}
               />
             ))}
           </div>
-        )}
-      </FilterSection>
+        </FilterSection>
 
-      <FilterSection title="Province">
-        <div className="space-y-2">
-          {PROVINCES.map((p) => (
-            <FilterCheckbox
-              key={p}
-              label={p}
-              checked={filters.province.includes(p)}
-              onToggle={() => toggleArrayFilter("province", p)}
-            />
-          ))}
-        </div>
-      </FilterSection>
-
-      <FilterSection title="Business Size">
-        <div className="space-y-2">
-          {BUSINESS_SIZES.map((s) => (
-            <FilterCheckbox
-              key={s.value}
-              label={s.label}
-              checked={filters.size.includes(s.value)}
-              onToggle={() => toggleArrayFilter("size", s.value)}
-            />
-          ))}
-        </div>
-      </FilterSection>
-
-      <FilterSection title="B-BBEE Level">
-        <div className="space-y-2">
-          {BBBEE_LEVELS.map((l) => (
-            <FilterCheckbox
-              key={l}
-              label={l}
-              checked={filters.bbbee.includes(l)}
-              onToggle={() => toggleArrayFilter("bbbee", l)}
-            />
-          ))}
-        </div>
-      </FilterSection>
-
-      <FilterSection title="Trust">
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">Verified only</span>
-            <span className="text-[11px] text-muted-foreground">Show CIPC-verified businesses</span>
+        <FilterSection title="Business Size">
+          <div className="space-y-1">
+            {BUSINESS_SIZES.map((s) => (
+              <FilterCheckbox
+                key={s.value}
+                label={s.label}
+                checked={filters.size.includes(s.value)}
+                onToggle={() => toggleArrayFilter("size", s.value)}
+              />
+            ))}
           </div>
-          <Switch
-            checked={filters.verified}
-            onCheckedChange={(c) => { setFilters((f) => ({ ...f, verified: c })); setPage(1); }}
-          />
-        </div>
-      </FilterSection>
+        </FilterSection>
+
+        <FilterSection title="B-BBEE Level">
+          <div className="space-y-1">
+            {BBBEE_LEVELS.map((l) => (
+              <FilterCheckbox
+                key={l}
+                label={l}
+                checked={filters.bbbee.includes(l)}
+                onToggle={() => toggleArrayFilter("bbbee", l)}
+              />
+            ))}
+          </div>
+        </FilterSection>
+
+        <FilterSection title="Trust">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Verified only</span>
+              <span className="text-[11px] text-muted-foreground">Show CIPC-verified businesses</span>
+            </div>
+            <Switch
+              checked={filters.verified}
+              onCheckedChange={(c) => { setFilters((f) => ({ ...f, verified: c })); setPage(1); }}
+            />
+          </div>
+        </FilterSection>
+      </div>
 
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={clearAll} className="justify-start text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearAll}
+          className="mt-6 w-full justify-center text-muted-foreground hover:text-foreground"
+        >
           <X className="mr-1.5 h-3.5 w-3.5" /> Clear all filters
         </Button>
       )}
@@ -359,56 +380,17 @@ export function DirectoryView() {
           <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
             {/* ===== SIDEBAR (desktop) ===== */}
             <aside className="hidden lg:block">
-              <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto scroll-elegant pr-2">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="font-display text-xl tracking-tight">Filters</h2>
-                  {hasFilters && (
-                    <button
-                      type="button"
-                      onClick={clearAll}
-                      className="text-[11px] font-medium uppercase tracking-wider text-sage hover:underline"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-                <Separator className="mb-5" />
-                {sidebar}
-              </div>
+              {filterCard}
             </aside>
 
             {/* ===== RESULTS COLUMN ===== */}
             <div className="flex flex-col gap-5">
-              {/* search + sort row */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={qInput}
-                    onChange={(e) => setQInput(e.target.value)}
-                    placeholder="Search businesses, services, products…"
-                    className="h-11 rounded-full border-border bg-card pl-10 pr-9 text-sm focus-visible:border-sage focus-visible:ring-sage/30"
-                  />
-                  {qInput && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQInput("");
-                        setFilters((f) => ({ ...f, q: "" }));
-                        setPage(1);
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      aria-label="Clear search"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* mobile filter trigger */}
+              {/* mobile filter trigger row (search is handled by the global
+                  header; we only show the mobile Filters trigger here) */}
+              <div className="flex items-center justify-between sm:justify-end">
                 <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="outline" className="h-11 sm:hidden" type="button">
+                    <Button variant="outline" className="h-10 sm:hidden" type="button">
                       <SlidersHorizontal className="h-4 w-4" />
                       Filters
                       {activeChips.length > 0 && (
@@ -418,42 +400,11 @@ export function DirectoryView() {
                       )}
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-[300px] overflow-y-auto border-border bg-background p-0">
+                  <SheetContent side="left" className="w-[320px] overflow-y-auto border-border bg-background p-0">
                     <SheetTitle className="sr-only">Filters</SheetTitle>
-                    <div className="flex h-16 items-center justify-between border-b border-border px-5">
-                      <span className="font-display text-lg tracking-tight">Filters</span>
-                      {hasFilters && (
-                        <button
-                          type="button"
-                          onClick={clearAll}
-                          className="text-[11px] font-medium uppercase tracking-wider text-sage hover:underline"
-                        >
-                          Clear all
-                        </button>
-                      )}
-                    </div>
-                    <div className="p-5">{sidebar}</div>
+                    <div className="p-5">{filterCard}</div>
                   </SheetContent>
                 </Sheet>
-
-                {/* sort */}
-                <div className="flex items-center gap-2">
-                  <span className="hidden text-xs uppercase tracking-wider text-muted-foreground sm:inline">
-                    Sort
-                  </span>
-                  <Select value={sort} onValueChange={(v) => { setSort(v as SortKey); setPage(1); }}>
-                    <SelectTrigger className="h-11 w-[160px] rounded-full border-border bg-card">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SORTS.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               {/* active filter chips */}
@@ -464,10 +415,10 @@ export function DirectoryView() {
                       key={idx}
                       type="button"
                       onClick={c.onRemove}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground/80 transition-colors hover:border-foreground/30"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-medium text-cream transition-colors hover:bg-ink/85"
                     >
                       {c.label}
-                      <X className="h-3 w-3 text-muted-foreground" />
+                      <X className="h-3 w-3 text-cream/70" />
                     </button>
                   ))}
                   <button
@@ -480,16 +431,31 @@ export function DirectoryView() {
                 </div>
               )}
 
-              {/* result count line */}
-              <div className="flex items-center justify-between border-b border-border pb-3 text-sm text-muted-foreground">
-                <span>
+              {/* result count + compact sort row */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+                <span className="text-sm text-muted-foreground">
                   {loading
                     ? "Searching…"
                     : total === 0
                       ? "No matches"
                       : `Showing ${rangeStart}–${rangeEnd} of ${formatCount(total)}`}
                 </span>
-                <span className="hidden text-xs sm:inline">Page {page} of {Math.max(pages, 1)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="hidden text-xs sm:inline text-muted-foreground">Page {page} of {Math.max(pages, 1)}</span>
+                  <span className="hidden text-xs uppercase tracking-wider text-muted-foreground sm:inline">Sort by</span>
+                  <Select value={sort} onValueChange={(v) => { setSort(v as SortKey); setPage(1); }}>
+                    <SelectTrigger className="h-8 w-[150px] rounded-full border-border bg-card text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORTS.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* grid */}
@@ -512,12 +478,18 @@ export function DirectoryView() {
                 />
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                  {items.map((b) => (
-                    <BusinessCard
+                  {items.map((b, i) => (
+                    <div
                       key={b.id}
-                      business={b}
-                      onNavigate={(slug) => navigate({ name: "business", slug })}
-                    />
+                      className="animate-fade-in-up"
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    >
+                      <BusinessCard
+                        business={b}
+                        onNavigate={(slug) => navigate({ name: "business", slug })}
+                        className="h-full"
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -584,9 +556,21 @@ function FilterCheckbox({
   onToggle: () => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 text-sm transition-colors hover:bg-muted/60">
+    <label
+      className={cn(
+        "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60",
+        checked && "bg-sage/[0.08]",
+      )}
+    >
       <Checkbox checked={checked} onCheckedChange={onToggle} />
-      <span className="flex-1 text-foreground/80">{label}</span>
+      <span
+        className={cn(
+          "flex-1 text-foreground/80",
+          checked && "font-semibold text-foreground",
+        )}
+      >
+        {label}
+      </span>
       {typeof count === "number" && (
         <span className="text-[11px] text-muted-foreground">{count}</span>
       )}

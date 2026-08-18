@@ -114,7 +114,7 @@ export function PublicHeader() {
               <Button
                 size="sm"
                 onClick={() => navigate({ name: "register" })}
-                className="bg-ink text-cream hover:bg-ink/90"
+                className="btn-lift bg-ink text-cream shadow-md shadow-ink/20 hover:bg-ink/90 hover:shadow-lg hover:shadow-ink/25"
               >
                 Join BlakNet
               </Button>

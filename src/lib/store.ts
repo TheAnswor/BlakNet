@@ -40,6 +40,7 @@ function parseHash(hash: string): Route {
         return { name: "dashboard-business", id: decodeURIComponent(c) };
       }
       if (b === "network") return { name: "dashboard-network" };
+      if (b === "following") return { name: "dashboard-following" };
       if (b === "newsfeed") return { name: "dashboard-newsfeed" };
       if (b === "events") return { name: "dashboard-events" };
       if (b === "resources") return { name: "dashboard-resources" };

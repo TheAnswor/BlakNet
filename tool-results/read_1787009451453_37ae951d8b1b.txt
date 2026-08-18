@@ -1,0 +1,347 @@
+     1→# BlakNet — Build Worklog
+     2→
+     3→## Project Overview
+     4→BlakNet is a modern South African business ecosystem for Black-owned businesses.
+     5→Tagline: **Built for Black Business. Built for Opportunity.**
+     6→Journey: Get Exposed → Get Connected → Get Ready.
+     7→
+     8→## Architecture Decisions
+     9→- **Framework**: Next.js 16 App Router (only `/` route is user-visible per sandbox rules).
+    10→- **Routing**: Single-page app at `/` with a custom **hash-based client-side router** so users can navigate Home / Directory / Business Profile / Newsfeed / Events / Resources / Pricing / About / Login / Register / Dashboard / Admin — all without extra Next.js page files.
+    11→- **Database**: Prisma + SQLite (the environment provides Prisma, NOT Supabase). The spec's Supabase schema is adapted to Prisma models.
+    12→- **Auth**: Lightweight session-based auth (HTTP-only cookie + bcrypt-style password hashing via Node crypto). Real users table in Prisma. Demo login available.
+    13→- **Data fetching**: TanStack Query for server state, Zustand for client state (current view, auth user, route params).
+    14→- **Backend**: API routes under `src/app/api/*` (no server actions).
+    15→
+    16→## Brand Design System
+    17→Palette (from user):
+    18→- `#1D2534` — deep navy / "ink" (primary dark, text, primary buttons)
+    19→- `#F6F6DF` — warm cream (background, light surfaces)
+    20→- `#717568` — muted olive / "sage" (secondary accent, highlights, badges)
+    21→
+    22→Design principles (from moodboard): minimal, neutral, sleek, premium SaaS.
+    23→- Strong typography: Geist Sans (body) + Instrument Serif (display headings).
+    24→- Generous whitespace, clean cards, subtle layering, consistent radius.
+    25→- NO indigo/blue, NO excessive gradients, NO Bootstrap look.
+    26→
+    27→CSS tokens are defined in `src/app/globals.css`:
+    28→- `--ink` / `--cream` / `--sage` brand vars + full light/dark shadcn token mapping.
+    29→
+    30→## Build Phases (per spec)
+    31→- Phase 1: Core platform (auth, public site, directory, profiles, business creation, dashboard shell, search, responsive UI) — IN PROGRESS
+    32→- Phase 2: Community (newsfeed, events, network/CRM, notifications)
+    33→- Phase 3: Trust & monetisation (verification, reviews, subscriptions, Yoco)
+    34→- Phase 4: Intelligence (later)
+    35→
+    36→---
+    37→Task ID: 1
+    38→Agent: Z.ai Code (main)
+    39→Task: Set up design foundation (brand palette, fonts, layout metadata, theme).
+    40→
+    41→Work Log:
+    42→- Analyzed moodboard via VLM CLI — extracted premium/minimal/neutral direction (layering, whitespace, restrained color).
+    43→- Defined BlakNet brand tokens in globals.css: ink #1D2534, cream #F6F6DF, sage #717568 + derived neutrals, full light & dark shadcn variable mapping, radius, fonts.
+    44→- Updated layout.tsx: Geist Sans + Instrument Serif (display) via next/font, BlakNet metadata (title/description/OG), brand favicon note.
+    45→
+    46→Stage Summary:
+    47→- Design system foundation ready. Next: Prisma schema + seed, then shared components & views.
+    48→
+    49→---
+    50→Task ID: 4-api-rest
+    51→Agent: general-purpose (Z.ai Code sub-agent)
+    52→Task: Build remaining BlakNet API routes (posts, events, resources, contacts, notifications, subscriptions, dashboard, admin, verification).
+    53→
+    54→Work Log:
+    55→- Read prior worklog + prisma schema + lib/auth, lib/db, lib/types, existing businesses route conventions (params: Promise<{...}>, await params, NextResponse.json, getSessionUser auth pattern).
+    56→- Created 17 route files under src/app/api/:
+    57→  1. posts/route.ts (GET list w/ author/business/_count take 30 newest; POST create w/ ownership check on businessId)
+    58→  2. posts/[id]/like/route.ts (POST toggle via postId_userId unique)
+    59→  3. posts/[id]/comments/route.ts (GET oldest first w/ user; POST auth create)
+    60→  4. events/route.ts (GET list w/ category + upcoming filters, _count attendees, ordered by startDate asc)
+    61→  5. events/[slug]/route.ts (GET single w/ _count attendees + registered boolean for authed user)
+    62→  6. events/[slug]/register/route.ts (POST toggle attendance via eventId_userId unique, status REGISTERED)
+    63→  7. resources/route.ts (GET published only, category/type/featured filters, ordered by createdAt desc)
+    64→  8. resources/[slug]/route.ts (GET single by slug)
+    65→  9. contacts/route.ts (GET list user's contacts newest; POST create with name required)
+    66→  10. contacts/[id]/route.ts (PATCH partial update w/ ownership 403; DELETE w/ ownership 403)
+    67→  11. notifications/route.ts (GET user's notifications newest, take 30)
+    68→  12. notifications/read/route.ts (POST mark one {id} w/ ownership check, else mark all unread)
+    69→  13. subscriptions/route.ts (GET current user's subscription or null)
+    70→  14. dashboard/stats/route.ts (GET aggregated summary: businesses, pendingVerifications, contacts, upcomingEvents, savedEvents, unreadNotifications, recentNotifications[5], recentContacts[3], plan, planStatus)
+    71→  15. admin/overview/route.ts (GET admin-only counts + 8 newest users)
+    72→  16. admin/verification/route.ts (GET pending requests w/ business+user; PATCH {id, status, adminNotes} — APPROVED sets business.verificationStatus=VERIFIED, REJECTED sets REJECTED, reviewedAt=now)
+    73→  17. verification/route.ts (POST auth: verify business.ownerId === user.id else 403, create PENDING request, set business.verificationStatus=PENDING)
+    74→- Intentionally skipped: reviews/route.ts (per spec).
+    75→- Conventions followed: Next.js 16 Promise params + await; NextResponse.json on every response; getSessionUser for auth; 401/403/404/400 status codes; no passwordHash/token/other-user CRM exposure; tags stay as comma-separated strings.
+    76→- Lint result: `bun run lint` → 0 errors, 1 unrelated warning (prisma/seed.ts unused eslint-disable). My new files: 0 errors, 0 warnings. `tsc --noEmit` → 0 errors in my new files (errors only in examples/ and skills/ which are not mine).
+    77→
+    78→Stage Summary:
+    79→- Full BlakNet REST API surface (community + CRM + notifications + subscriptions + dashboard + admin + verification) now implemented and type-clean.
+    80→- Next: wire these endpoints into the dashboard/admin/CRM UI views (Phase 2–3 frontend integration), and add Yoco webhook for subscription activation.
+    81→
+    82→---
+    83→Task ID: 12-13-views
+    84→Agent: general-purpose (Z.ai Code sub-agent)
+    85→Task: Build Pricing + About + Auth views (premium minimal neutral, brand-aligned).
+    86→
+    87→Work Log:
+    88→- Read worklog + lib/store, lib/api, lib/constants (PLANS/STATS), lib/types, components/blaknet/{section,badges,logo}, ui/{button,card,label,input,checkbox,accordion,separator}, views/public/home (style reference), app/page.tsx. Confirmed dev server healthy (HTTP 200 on /).
+    89→- Created `src/views/public/pricing.tsx` → `PricingView`:
+    90→  * Header `bg-cream-grain` with centered SectionHeading (eyebrow "Pricing", title "Plans that grow with your business.", description per spec) + sage "Free forever plan · No card required" Pill.
+    91→  * 3 plan cards (`PLANS` map) in `grid gap-6 lg:grid-cols-3 max-w-6xl mx-auto lg:items-stretch`. Highlighted Verified card uses `bg-ink text-cream ring-2 ring-sage shadow-xl lg:scale-[1.03]`, with a top-centered "Most popular" cream Pill. Non-highlighted cards use `border border-border bg-card`.
+    92→  * Each card: name (font-display), tagline, price (font-display text-4xl) + cadence muted, CTA button (highlighted uses `bg-cream text-ink`, others `bg-ink text-cream`). CTA logic: unauthed → navigate register; authed STARTER plan + current user STARTER → "Current plan" disabled; authed otherwise → toast "Upgrade flow coming soon — Yoco integration in progress".
+    93→  * Features list: Check (sage) if included, X (muted) if not + label, with optional badge Pill on right (tone=sage on dark card, neutral on light).
+    94→  * "Compare in detail" Accordion with 3 FAQ items (cancel anytime, what is verification, Yoco support).
+    95→  * Enterprise band: card with Building2 icon, "Need enterprise or API access? Talk to us." + outline "Talk to us" button (toasts contact email).
+    96→- Created `src/views/public/about.tsx` → `AboutView`:
+    97→  * Hero `bg-ink-grain text-cream`: eyebrow "About BlakNet", title "The digital infrastructure for Black-owned business.", subtitle, manifesto "Get Exposed. Get Connected. Get Ready." italic sage. Cream CTA "Join BlakNet" + outline "Explore businesses". Decorative LogoMark.
+    98→  * "Our why" section (cream-grain): two columns — left editorial paragraph + "Visibility isn't enough." heading + sage "Built for South Africa · Mobile-first" Pill; right grid of 4 principle cards (Confidence=ShieldCheck, Opportunity=Target, Community=Heart, Trust=Handshake) each with icon tile + title + body.
+    99→  * "The journey" section: 7-step horizontal stepper (Get Exposed → Get Connected → Get Informed → Get Compliant → Get Project-Ready → Get Funding-Ready → Get Opportunities) as connected numbered nodes (horizontal line on lg, vertical stack on mobile).
+   100→  * Stats band (reuse STATS) on `bg-ink-grain`.
+   101→  * "Built mobile-first for South African entrepreneurs" section: centered SectionHeading + grid of 6 platform pillars (Directory, Verification, Newsfeed, Events, Network CRM, Resources) each icon + 1 line.
+   102→  * Final CTA: "Join the network." with Join BlakNet + Explore businesses buttons in a dark rounded panel.
+   103→- Created `src/views/public/auth.tsx` → `LoginView`, `RegisterView`, `ForgotView`:
+   104→  * Shared `AuthLayout`: split-screen — left dark `bg-ink-grain text-cream` brand panel (desktop only via `hidden lg:flex`) with Logo, manifesto heading + sage italic line, and 3 TrustBullets (ShieldCheck, Network, Rocket). Right panel: form on `bg-background`, full-width on mobile with a small Logo on top.
+   105→  * `LoginView`: email + password (PasswordInput with eye toggle), "Forgot password?" link → navigate forgot, "Don't have an account? Join BlakNet" → register. Submit POST `/api/auth/login` `{ email, password }`; on success `refreshAuth()` + `navigate({name:"dashboard"})`; on error toast (destructive) with message + keep fields. "Use demo account" button POSTs `/api/auth/demo` then refreshAuth + navigate dashboard. Loading state on both buttons ("Signing in…" / "Loading demo…").
+   106→  * `RegisterView`: firstName + lastName (2-col), email, password (PasswordInput), Checkbox "I agree to the Terms & Privacy" (required). Submit POST `/api/auth/register` `{ firstName, lastName, email, password }`; on success refreshAuth + navigate dashboard; on error toast. "Already have an account? Log in" → login. Loading state.
+   107→  * `ForgotView`: email + "Send reset link" button. Simulated send (setTimeout 700ms) → toast "Password reset link sent (demo) — check your inbox." + clear field. "Remembered it? Back to log in" → login.
+   108→  * Client-side validation: email regex, password >= 6 chars, required fields, agree checkbox. Inline error text under each field via `FieldError` component. `aria-invalid` on inputs. Forms use `noValidate` + `onSubmit preventDefault`.
+   109→- Wired all 3 view files into `src/app/page.tsx`: added imports for PricingView, AboutView, and auth views; split `PUBLIC_ROUTES` (header/footer routes) from `AUTH_ROUTES` (login/register/forgot — standalone split-screen, no public chrome); added route render branches for pricing/about/login/register/forgot. Preserved pre-existing authed-redirect effect (login/register → dashboard if user already logged in).
+   110→- Lint result: `bun run lint` → 0 errors, 0 warnings in MY files (pricing.tsx, about.tsx, auth.tsx, page.tsx). Pre-existing errors in other agents' files (directory.tsx, events.tsx, newsfeed.tsx, resource-detail.tsx, resources.tsx, business-profile.tsx — all react-hooks/set-state-in-effect and react-hooks/static-components) are out of scope.
+   111→- TypeScript: `bunx tsc --noEmit` → 0 errors in MY files (only pre-existing errors in examples/, skills/, next.config.ts, newsfeed.tsx).
+   112→- Dev server: `tail dev.log` → no compile/runtime errors. Final `GET / 200 in 157ms (compile: 36ms, render: 121ms)`. Multiple successful recompiles after file additions.
+   113→
+   114→Stage Summary:
+   115→- Pricing + About + Auth (Login/Register/Forgot) views now live, premium minimal neutral design consistent with HomeView.
+   116→- All 3 views are wired into the hash router via `src/app/page.tsx` and compile cleanly.
+   117→- Auth flow complete: register → POST `/api/auth/register` → refreshAuth → dashboard; login → POST `/api/auth/login` → refreshAuth → dashboard; demo button → POST `/api/auth/demo` → dashboard; forgot → simulated MVP toast.
+   118→- Pricing CTAs: unauthed → register; authed Starter & current → "Current plan" disabled; authed upgrade → Yoco-coming-soon toast (pending Phase 3 Yoco integration).
+   119→- Next: wire dashboard views (Phase 2 community UI), Yoco subscription activation (Phase 3), and the directory/newsfeed/events/resources views already in progress by other agents.
+   120→
+   121→---
+   122→Task ID: 7-8-views
+   123→Agent: general-purpose (Z.ai Code sub-agent)
+   124→Task: Build Directory + Business Profile public views.
+   125→
+   126→Work Log:
+   127→- Read prior worklog + store (hash router), api (api/qs helpers), types (Business/BusinessReview/Industry/Routes), format helpers, constants (PROVINCES/BUSINESS_SIZES/BBBEE_LEVELS), existing blaknet components (BusinessCard+Skeleton, badges, StarRating, SectionHeading/EmptyState), shadcn/ui (Sheet/Select/Checkbox/Switch/Progress/Separator/Skeleton/Input/Textarea/Button), useToast hook, and the GET /api/businesses, GET /api/businesses/[slug], GET /api/businesses/[slug]/reviews, GET /api/businesses/[slug]/view, GET /api/industries route shapes.
+   128→- Created `src/views/public/directory.tsx` exporting `DirectoryView`:
+   129→  * Full-width cream-grain header band with SectionHeading + result count pills (total businesses / provinces / industries).
+   130→  * Two-column layout lg+: sticky left filter sidebar (~280px, `scroll-elegant`) + right results column. Mobile: filters in a left-side Sheet triggered by a "Filters" button with active-count badge.
+   131→  * Prominent search bar at top of results — reads `sessionStorage.getItem("blaknet:directory-search")` via lazy useState initializer (also clears it) so it pre-fills BOTH the input and the live `q` filter on mount, then debounces live typing → `filters.q` (300ms setTimeout).
+   132→  * Filters: Industry (fetched from /api/industries w/ count badges), Province (PROVINCES), Business Size (BUSINESS_SIZES value→label), B-BBEE Level (BBBEE_LEVELS), and a "Verified only" Switch. Each section uses an uppercase eyebrow heading + a "Clear all" button when filters active.
+   133→  * Sort: Select (Relevance/Newest/Most viewed/Verified first). Default `relevance`.
+   134→  * Results grid `grid gap-5 sm:grid-cols-2 xl:grid-cols-3` of BusinessCard with `onNavigate={(slug)=>navigate({name:"business",slug})}`. 6 BusinessCardSkeleton on loading. EmptyState (Frown) with Clear-filters button on empty.
+   135→  * Pagination Prev/Next + "Page X of Y" + "Showing 1–12 of N" header line. pageSize=12.
+   136→  * Active-filter chip row above results (removable pills for q, each industry, province, size, bbbee, verified).
+   137→  * State mgmt: single `filters={q,industry,province,size,bbbee,verified}` object + `sort` + `page`. Page reset moved OUT of effects and into the debounce timeout callback + each filter/sort change handler (avoids the `react-hooks/set-state-in-effect` rule). Fetch effect uses a single eslint-disable for `setLoading(true)`.
+   138→- Created `src/views/public/business-profile.tsx` exporting `BusinessProfileView`:
+   139→  * Wrapper reads `route` from store, early-returns null if `route.name !== "business"`, then delegates to a `BusinessProfile` child with `key={slug}` so all internal state cleanly remounts on slug change (no rules-of-hooks violations).
+   140→  * Fetches GET /api/businesses/[slug] → `{ business }`. 404 → EmptyState (Frown) with "Back to directory" button. On success fires POST /api/businesses/[slug]/view fire-and-forget.
+   141→  * Header band: `bg-ink-grain text-cream` with logo (or initial fallback), font-display name, tagline, badge row (VerifiedBadge if verified/pending, BBBEEBadge, Featured Pill, Industry pill, Location pill w/ MapPin), and CTA buttons (Website → external link, Email → mailto, WhatsApp → wa.me/<digits>, Share → navigator.share || clipboard).
+   142→  * Profile completion bar (owner-only): cream-grain band with Progress bar + "Edit business" button → `navigate({name:"dashboard-business", id})`.
+   143→  * Body: lg two-column (main 2fr + sticky sidebar 1fr).
+   144→  * Main cards (border border-border bg-card rounded-xl p-6): About (multi-paragraph split), Services (Pill tags → navigate to directory w/ service as q via sessionStorage), Products (Pill tone=sage), Reviews (rating summary + inline form + review list up to 12). Inline review form: rating Select 1-5 + Textarea + optional company Input + submit. POSTs to /api/businesses/[slug]/reviews and prepends new review locally. Errors handled via try/catch + useToast.
+   145→  * Sidebar (sticky top-24): Business Information (definition list, hides null rows), Contact (website/email/phone/address links + WhatsApp button), Trust Signals (VerifiedBadge, BBBEEBadge, years in business, profile views, review count).
+   146→  * Loading skeleton: full layout with pulse blocks (header band + 3 main cards + 2 sidebar cards).
+   147→- Lint: `bunx eslint src/views/public/directory.tsx src/views/public/business-profile.tsx` → 0 errors, 0 warnings. `bun run lint` overall → 0 errors, 2 pre-existing warnings (business-card.tsx + prisma/seed.ts unused eslint-disable, both not mine).
+   148→- TypeScript: `bunx tsc --noEmit` → no errors in my files (pre-existing errors only in examples/, skills/, newsfeed.tsx, resource-detail.tsx, next.config.ts).
+   149→- Dev server: `tail -20 dev.log` shows continuous `✓ Compiled in Nms` lines, no compile errors. My view files aren't imported by page.tsx yet (per task constraint to only modify the two view files), so they will be compiled on-demand when wired in by a follow-up agent.
+   150→
+   151→Stage Summary:
+   152→- Directory + Business Profile public views are built, type-clean and lint-clean. They reuse the brand tokens, store, api client, format helpers, constants and all existing blaknet/shadcn components per spec. Both handle loading, empty and error (404) states. The views are NOT yet wired into `src/app/page.tsx` (left untouched per task scope) — that wiring is a small follow-up edit: replace the two `ComingSoon` branches for `directory` and `business` routes with `<DirectoryView />` and `<BusinessProfileView />`.
+   153→
+   154→---
+   155→Task ID: 9-10-11-views
+   156→Agent: general-purpose (Z.ai Code sub-agent)
+   157→Task: Build Newsfeed + Events + Resources views (community Phase 2 frontend).
+   158→
+   159→Work Log:
+   160→- Read worklog.md, store.ts (hash router), api.ts (api + qs), types.ts (Post/Comment/BlakEvent/Resource/AuthUser), constants.ts (EVENT_CATEGORIES, RESOURCE_CATEGORIES, RESOURCE_TYPES), format.ts (timeAgo, formatDate, monthDay, formatNumber, initials), section.tsx (SectionHeading, EmptyState), badges.tsx (Pill, VerifiedBadge), existing home.tsx + page.tsx for conventions. Confirmed API shapes from posts/events/resources routes.
+   161→- Created 5 view files under src/views/public/:
+   162→  1. newsfeed.tsx (NewsfeedView) — cream-grain header with SectionHeading "The Hustle Feed" / "Where Black businesses connect."; auth-aware composer (Textarea + Text/Announcement/Opportunity toggles + optional title Input, POST /api/posts then prepend); post cards with author avatar (initials in bg-ink text-cream circle), author name, time-ago, post-type Pill (sage for announcement, ink for opportunity, cream for image, neutral otherwise), business link → navigate({name:"business",slug}); whitespace-pre-wrap content; image block; footer with like (Heart filled when liked, optimistic toggle via POST /api/posts/:id/like), comment button (expandable inline thread; GET /api/posts/:id/comments, inline input POSTS new comment and prepends), share button (navigator.clipboard + toast); unauthed inline "Log in" prompt for like/comment; loading Skeletons; EmptyState (Newspaper, "No posts yet") with conditional CTA (scroll to composer if authed else navigate to login); lg-only right sidebar with Trending types chips (All/Text/Announcement/Opportunity, client-side filter) + Community guidelines card.
+   163→  2. events.tsx (EventsView) — cream-grain header; horizontal scrollable category filter row (All + EVENT_CATEGORIES), refetches via ?category=value on toggle, "All" clears; responsive grid (sm:2 lg:3) of card-lift buttons → navigate({name:"event",slug}); card top 16/9 image area (renders img if imageUrl is SVG data-uri, else bg-ink-grain block with category-specific icon + month/day badge in corner via monthDay(startDate)); sage Pill category, font-display title line-clamp-2, description line-clamp-2, meta row (Calendar short date, MapPin location or Video "Online" if isOnline, Users attendee count); pulse Skeletons; EmptyState (Frown, "No upcoming events match your filters.") with Clear filters action.
+   164→  3. event-detail.tsx (EventDetailView) — reads slug from route.name==="event"; 404 → EmptyState "Event not found"; ink-grain hero with back link, sage category Pill, font-display title 3xl-5xl, meta row (date, time, online/location, attendees); CTA buttons Register / I'm interested (toggle via POST /api/events/:slug/register, optimistic attendee count + toast, unauthed → toast + navigate login); optional "Register on organiser site" external link button; Share; two-column body with full description (whitespace-pre-wrap) on left and sticky details card on right (Date/Time/Location-or-Online-link/Capacity/Attendees via DetailRow definition list).
+   165→  4. resources.tsx (ResourcesView) — cream-grain header; left sticky sidebar (lg) with category checkboxes (RESOURCE_CATEGORIES), type checkboxes (RESOURCE_TYPES), Featured-only toggle, active-count badge, Clear-all button; on mobile, collapsible disclosure panel using Collapsible; responsive grid (sm:2 lg:3) of card-lift buttons → navigate({name:"resource",slug}); card top 16/7 tinted band bg-ink-grain with type-specific icon (article→FileText, guide→BookOpen, template→Download, checklist→CheckCircle2, video→PlayCircle, workshop→Users) + Featured badge; sage Pill type + neutral Pill category, font-display title, description line-clamp-2, footer with author + readMinutes + "Read →". Filters are client-side (single fetch, useMemo).
+   166→  5. resource-detail.tsx (ResourceDetailView) — reads slug from route.name==="resource"; 404 → EmptyState; Breadcrumb (Home / Resources / title) in cream-grain band; two-column with full content (max-w-prose, whitespace-pre-wrap) on left and "About this resource" sidebar card on right (Type, Category, Author, Read time, Published date via DetailRow), "Back to resources" + "Share" buttons (navigator.clipboard + toast), plus a small "Looking for more?" CTA card linking back to resources.
+   167→- Wired all 5 views into src/app/page.tsx (added imports + route branches for newsfeed/events/event/resources/resource; updated ComingSoon fallback clause to exclude them).
+   168→- Lint fixes:
+   169→  • Replaced `const Icon = typeIcon(...)` + `<Icon />` (triggered react-hooks/static-components) with static switch-style helper components `TypeIcon` and `CategoryIcon` declared at module level (lookup table + render).
+   170→  • Removed `react-hooks/set-state-in-effect` violations by replacing `load = useCallback(() => { setLoading(true); ... })` + `useEffect(() => load(), [load])` with inline async IIFE in useEffect (cancelled flag pattern) + `reloadKey`/`reload` button handler for retries.
+   171→  • Removed unused `// eslint-disable-next-line @next/next/no-img-element` comments (rule is OFF in eslint.config.mjs — see `@next/next/no-img-element: "off"`).
+   172→  • Removed unused `useRef` import in newsfeed.tsx (composer scroll handled via document.getElementById("composer") + scrollIntoView).
+   173→  • Removed unused `useCallback` and `formatDateTime` imports in event-detail.tsx; unused `formatDate` import in resources.tsx.
+   174→  • Added `AvatarUser` interface in newsfeed.tsx and spread `c.user` with placeholder email when passing Comment.user to Avatar (Comment.user shape lacks email).
+   175→- Lint result: `bun run lint` → 0 errors, 2 warnings (both pre-existing in prisma/seed.ts and components/blaknet/business-card.tsx — not my files). tsc --noEmit on my view files: 0 errors.
+   176→- Dev server confirmation (dev.log): `GET /` 200; live API calls rendered from the views — `GET /api/posts 200`, `GET /api/events 200`, `GET /api/resources 200`, Prisma queries logged; all compiles successful (no compile/runtime errors).
+   177→
+   178→Stage Summary:
+   179→- Newsfeed + Events + Resources Phase 2 community views are live and reachable from the public site via hash routes (#/newsfeed, #/events, #/events/:slug, #/resources, #/resources/:slug). Each view has loading skeletons, empty/error states, is fully responsive, and reuses the BlakNet brand system (ink/cream/sage, font-display, card-lift, Pill, SectionHeading, EmptyState). Wired into page.tsx so they no longer show the "Coming next" placeholder. Next: build dashboard equivalents (dashboard-newsfeed / dashboard-events / dashboard-resources), real-time notifications integration, and Yoco subscription webhook.
+   180→
+   181→---
+   182→Task ID: 17-views
+   183→Agent: general-purpose (Z.ai Code sub-agent)
+   184→Task: Build Admin shell + overview + verification views.
+   185→
+   186→Work Log:
+   187→- Read prior worklog + dashboard/shell.tsx (pattern to mirror), views/dashboard/overview.tsx (style reference), lib/types.ts (Route, AuthUser, VerificationStatus), lib/api.ts (api<T> GET + PATCH with json), lib/store.ts (hash router + refreshAuth via useApp.getState()), lib/format.ts (initials, timeAgo), components/blaknet/{logo,badges,section}, components/ui/{button,card,dialog,sheet,textarea,skeleton,avatar,separator,badge}, hooks/use-toast.ts, app/api/admin/{overview,verification}/route.ts (verified exact response shapes), prisma/schema.prisma VerificationRequest model (verificationType is lowercase cipc|bbbee|tax|certification), app/page.tsx (isAdmin currently routes to ComingSoon). Confirmed dev server healthy.
+   188→- Created 3 files:
+   189→  1. `src/components/admin/shell.tsx` → `AdminShell`:
+   190→     * Mirrors DashboardShell pattern: sticky dark `bg-ink text-cream` sidebar (w-64 lg, left Sheet on mobile) with LogoMark + BlakNet wordmark; "Admin Console" sage eyebrow; NAV array (Overview → admin, Verification → admin-verification, active highlighted with `bg-sage/15 text-cream` + sage icon); COMING_SOON array (Users, Businesses, Industries, Events, Newsfeed, Resources, Reviews, Subscriptions, Reports, Settings) rendered muted `text-cream/30 cursor-not-allowed` with a small "Soon" cream pill.
+   191→     * Sidebar footer: avatar (initials, sage circle) + admin user name + "Administrator" subtitle + uppercase sage "Admin" tag pill.
+   192→     * Topbar: mobile Sheet trigger (Menu), breadcrumb "Admin / <current>" (currentLabel derived from route), ml-auto "Back to dashboard" outline button (→ navigate dashboard, hidden on mobile) + "Sign out" ghost button (POST /api/auth/logout → refreshAuth → navigate home, same pattern as DashboardShell).
+   193→     * Guards: while `authLoading`, a centered ink spinner; if `authUser?.role !== "ADMIN"`, renders EmptyState (Shield, "Admin access required.") with "Back to dashboard" button — per spec double-check.
+   194→  2. `src/views/admin/overview.tsx` → `AdminOverviewView`:
+   195→     * Fetches GET /api/admin/overview into a discriminated LoadState (loading | forbidden (403) | error | ready). Inline async IIFE in useEffect with cancelled-flag pattern (no set-state-in-effect violations).
+   196→     * Header: `bg-ink-grain text-cream` hero with Sparkles decoration, sage "Admin" Pill, font-display "Platform overview." title, cream/70 subtitle.
+   197→     * Stat grid (sm:2 lg:3) of 6 cards: Total users (Users), Total businesses (Building2), Verified businesses (ShieldCheck, accent sage tile + sage "verified" eyebrow), Pending verifications (Clock, sage tile when value>0 + sage "review" eyebrow), Active subscriptions (CreditCard), Newsfeed posts (Newspaper). Each: icon tile (sage when accent/warn else ink/cream), big font-display number, label, muted subtitle.
+   198→     * Pending-verifications callout (lg:col-span-2): when pending>0 a sage-bordered `bg-sage/5` card with Clock tile + "{N} businesses awaiting verification" + "Review queue" ink button → navigate admin-verification; else a CheckCircle2 "All caught up." card.
+   199→     * Events mini-card on the right: Calendar tile + count + "All events" Pill.
+   200→     * Recent registrations card: divide-y list of up to 8 newest users (Avatar with ink/cream initials, name, email, time-ago) — uses `initials(u)` helper directly since recentRegistrations shape matches.
+   201→     * Skeleton state: hero + 6 stat tiles + callout + list pulse blocks.
+   202→     * Forbidden → EmptyState (ShieldCheck) with Back-to-dashboard; Error → EmptyState (AlertCircle) with Try again (window.location.reload).
+   203→  3. `src/views/admin/verification.tsx` → `AdminVerificationView`:
+   204→     * Fetches GET /api/admin/verification into the same LoadState pattern + `reloadKey` for retries (Try again button in error state sets state to loading + bumps reloadKey — both in event-handler scope, effect re-runs IIFE without synchronous setState).
+   205→     * Header: sage "Verification" Pill + font-display "Verification Queue" + subtitle. Right-side stats strip card: Clock + big count + "{pending}" label.
+   206→     * Empty state: EmptyState (CheckCircle2, "No pending verifications.", "All businesses are verified or rejected. Great work.").
+   207→     * Pending list of `VerificationCard`s — each card: business logo (img or initial tile, clickable → navigate business profile by slug, with ArrowRight hover animation), business name + type pill (typePill() maps lowercase cipc/bbbee/tax/certification → CIPC/B-BBEE/Tax/Certification with ink/sage/cream/neutral tones, fallback neutral with raw string), "Submitted {timeAgo}" with Clock; requester Avatar (initials) + name + email; optional notes block (muted/40 bg); optional "View submitted document" external link (FileText icon). Right-side action buttons stacked on sm+: "Approve" (sage bg, ink text, CheckCircle2), "Reject" (destructive outline, XCircle), "Request info" (ghost, Mail).
+   208→     * Confirm Dialog: title verb depends on status, description references business name + consequence note; Textarea for optional adminNotes (placeholder context-aware); footer Cancel (ghost) + action button (color-coded: sage for approve, destructive for reject, ink for info-request). Submit handler PATCH /api/admin/verification with { id, status, adminNotes } → on success: toast success + remove item from local state (optimistic) + close dialog; on error: toast destructive with message. Submitting flag disables Cancel + action button (shows "Saving…").
+   209→     * QueueSkeleton: header strip + 3 card pulse blocks.
+   210→- Wired into `src/app/page.tsx`: imported AdminShell, AdminOverviewView, AdminVerificationView; replaced the placeholder ComingSoon branch for `isAdmin` with `<AdminShell>{route.name==="admin" && <AdminOverviewView />}{route.name==="admin-verification" && <AdminVerificationView />}</AdminShell>`. Preserved all other route logic and authed-redirect effect untouched.
+   211→- Lint result: `bun run lint` → 0 errors, 4 warnings (all pre-existing in prisma/seed.ts, components/blaknet/business-card.tsx, views/dashboard/overview.tsx, app/page.tsx — none in my new files). Removed one initially-introduced unused `// eslint-disable-next-line @next/next/no-img-element` directive in verification.tsx (rule is OFF per eslint.config.mjs).
+   212→- TypeScript: `bunx tsc --noEmit` → 0 errors in my new files (shell.tsx, overview.tsx, verification.tsx) and the page.tsx edit.
+   213→- Dev server: `tail -25 dev.log` shows continuous `✓ Compiled in Nms` with no compile/runtime errors after the file additions and page.tsx wiring. Multiple successful recompiles.
+   214→
+   215→Stage Summary:
+   216→- Admin surface is now live and reachable via hash routes #/admin (overview) and #/admin-verification (queue). AdminShell gates on `authUser.role === "ADMIN"` (with a brief loading spinner during authLoading and an EmptyState fallback for non-admin authed users); page.tsx still gates unauthed users to login. Overview renders 6 stat cards, the pending-verifications callout (links to queue), the events mini-card, and the recent-registrations list. Verification queue renders pending requests with Approve/Reject/Request-info dialogs that PATCH the API and remove items optimistically with toast feedback. All three files are lint-clean and type-clean. Next: build out remaining admin sections (Users, Businesses, Industries, Events, Newsfeed, Resources, Reviews, Subscriptions, Reports, Settings) currently shown as "Soon" placeholders, and wire Yoco subscription activation webhook.
+   217→
+   218→---
+   219→Task ID: 16-views
+   220→Agent: general-purpose (Z.ai Code sub-agent)
+   221→Task: Build dashboard Network / Notifications / Plan / Settings / Help views (Phase 2–3 dashboard UI).
+   222→
+   223→Work Log:
+   224→- Read prior worklog + store (hash router), api client, types (Contact/Notification/Subscription/Plan/SubscriptionStatus), format helpers, constants (CONTACT_CATEGORIES, PLANS), blaknet components (Pill, EmptyState), shadcn/ui (Button, Input, Textarea, Label, Select, Tabs, Dialog, Switch, Avatar, Accordion, Skeleton, Separator), useToast hook, dashboard shell + overview.tsx for style reference, and the API route shapes for contacts / contacts/[id] / notifications / notifications/read / subscriptions. Confirmed dev server healthy (HTTP 200 on /).
+   225→- Created `src/views/dashboard/network.tsx` → `NetworkView` (CRM):
+   226→  * Header "My Network" + subtitle + top-right "Add contact" button (bg-ink text-cream) that opens a Dialog with a form.
+   227→  * Fetches GET /api/contacts → { items: Contact[] }. Loading skeletons (6-card pulse grid), error EmptyState with Try again, empty EmptyState (Users icon, "Your network starts with one connection." + Add contact CTA), and a no-results EmptyState with Clear filters CTA when filters return zero.
+   228→  * Search input (filters client-side by name/company/email) + category pill row (All + each CONTACT_CATEGORIES) with per-category counts; active pill uses bg-ink text-cream.
+   229→  * Responsive card grid (sm:2 / xl:3) — each card shows avatar initial, name, position·company line, category Pill (tone varies: Client→sage, Supplier→ink, Partner/Investor→cream, else neutral), clickable email/phone/website rows (mailto / tel / external link) with Mail/Phone/Globe icons, tag chips (split on comma), "Added {timeAgo}" footer, Edit + Delete ghost buttons.
+   230→  * Add/Edit Dialog form: name (required), company, position, email, phone, website, category Select (CONTACT_CATEGORIES), tags Input, notes Textarea. Add → POST /api/contacts; Edit → PATCH /api/contacts/${id}; toast on success/error; refetch on close. Submitting state on button.
+   231→  * Delete confirmation Dialog → DELETE /api/contacts/${id} → toast + refetch.
+   232→- Created `src/views/dashboard/notifications.tsx` → `NotificationsView`:
+   233→  * Header "Notifications" + subtitle + top-right "Mark all as read" Button (disabled when unread=0 or marking). Unread count badge in sage.
+   234→  * Fetches GET /api/notifications → { items }. Loading skeletons (5 rows), error EmptyState, empty EmptyState (CheckCheck icon, "You're all caught up.", "No notifications right now.").
+   235→  * List rendered as rounded card with divide-y rows. Unread rows have a subtle bg-sage/[0.04] tint + sage filled icon circle; read rows use muted circle. Each row is a button — click → POST /api/notifications/read with { id } (optimistic update, revert on failure). Icon-by-type rendered via a module-level switch helper `NotificationIcon` (verification→ShieldCheck, review→Star, connection→Users, event→Calendar, comment→MessageCircle, post→Bell, subscription→CreditCard, enquiry→Mail, announcement→Sparkles, default→Bell) to avoid react-hooks/static-components rule. Unread rows also show a small sage dot + trailing Check icon.
+   236→  * "Mark all as read" → POST /api/notifications/read (no body) then sets all items read locally + toast.
+   237→- Created `src/views/dashboard/plan.tsx` → `PlanView`:
+   238→  * Header "My Plan" + subtitle. Fetches GET /api/subscriptions → { subscription: Subscription | null } with cancelled-flag useEffect pattern (no set-state-in-effect violation).
+   239→  * Top "Current plan" card showing plan name (authUser.plan, title-cased), StatusBadge (FREE/ACTIVE/PAST_DUE/CANCELLED/EXPIRED with appropriate tones — ACTIVE sage, PAST_DUE amber, others neutral), short note (varies by plan/status), crown + price tile in bg-ink-grain text-cream, and Started/Renews detail rows (Calendar icon + formatDate) when subscription has dates.
+   240→  * Below: 3 plan tier cards (reuse PLANS) in lg:grid-cols-3. Current plan card: ring-2 ring-sage + "Current plan" sage pill at top + disabled "Current plan" CTA. Highlighted (Verified) non-current card: bg-ink-grain text-cream treatment. Other cards: border border-border bg-card. Each card shows tagline, price (font-display 4xl) + cadence, feature list with Check (sage) / X (muted) icons and optional Pill badge. CTAs: higher tiers → "Upgrade to X" (highlighted uses bg-cream text-ink, others bg-ink text-cream) → on click toast "Yoco checkout is being prepared — a team member will reach out to complete your upgrade." Lower tiers → disabled "Downgrade" button.
+   241→  * "Billing history" section with EmptyState (Receipt icon, "No invoices yet", "Your first invoice will appear here after your first paid cycle.").
+   242→  * FAQ Accordion (2 items): "How do I cancel?" + "Is Yoco secure?" in a rounded card.
+   243→- Created `src/views/dashboard/settings.tsx` → `SettingsView`:
+   244→  * Header "Settings" + subtitle. Uses Tabs (Profile / Account / Notifications).
+   245→  * Profile tab (lg:grid-cols-3): main form (firstName, lastName, phone, bio Textarea) prefilled via lazy useState initializer from authUser (avoids set-state-in-effect). "Save changes" → toast "Profile updates are coming soon." (no POST per spec). Side avatar card: initials Avatar (bg-ink text-cream) + "Upload coming soon — your initials are used for now." note.
+   246→  * Account tab: Email card (read-only/disabled Input with Mail icon, font-mono), "Change password" form (current/new/confirm password inputs with autoComplete hints) → on submit checks new===confirm else destructive toast, then toasts "Password change coming soon." Danger zone (border-destructive/30 bg): red AlertTriangle icon tile, "Delete account" destructive button → opens confirm Dialog → on confirm toasts "Account deletion requires admin assistance — please contact support." (destructive variant).
+   247→  * Notifications tab: 3 channel rows (Email / In-app / WhatsApp) each with icon + title + description + Switch (default on). Wrapped in a divide-y list. Save → toast "Saved". Footer note band: "Granular notification preferences are coming soon." with mailto link.
+   248→  * Used `icon: Icon` destructured-renommer pattern in NotifRow helper — lint clean (no react-hooks/static-components warning).
+   249→- Created `src/views/dashboard/help.tsx` → `HelpView`:
+   250→  * Header "Help & Support" + subtitle.
+   251→  * Grid of 4 help cards (sm:2 / xl:4) — Getting started (BookOpen), Verification (ShieldCheck), Subscriptions & billing (CreditCard), Contact support (Mail). Each card has icon tile (bg-ink text-cream), title, description, outline Button CTA with ArrowRight. CTAs: getting started → navigate resources; verification → navigate dashboard-businesses; billing → navigate dashboard-plan; contact support → mailto:hello@blaknet.co.za.
+   252→  * "Popular articles" card: numbered list (01–05) of 5 articles linking to navigate resources, plus "Browse all" ghost button.
+   253→  * Contact band: bg-ink-grain text-cream panel with decorative LifeBuoy icon, "Still stuck?" heading, "Email the BlakNet team…" description, primary "hello@blaknet.co.za" cream button (mailto) + outline "Visit your network" button → dashboard-network.
+   254→- Wired all 5 views into src/app/page.tsx (alongside OverviewView, AdminOverviewView, AdminVerificationView from other agents): added imports + 5 explicit route branches in the DashboardShell block, and replaced the `route.name !== "dashboard"` fallback with a "not in known set" check so that dashboard-businesses / dashboard-business-new / dashboard-business / dashboard-newsfeed / dashboard-events / dashboard-resources still hit the ComingSoon fallback (those are owned by other agents).
+   255→- Lint result: `bun run lint` → 0 errors, 4 warnings (all pre-existing "Unused eslint-disable directive" in prisma/seed.ts, business-card.tsx, overview.tsx, and page.tsx line 71 — the page.tsx warning is from a previous agent's `// eslint-disable-next-line react-hooks/exhaustive-deps` that's now unused because the rule is OFF in eslint.config.mjs; not introduced by my edits). My 5 new view files: 0 errors, 0 warnings.
+   256→- TypeScript: `bunx tsc --noEmit` → 0 errors in my files (only pre-existing errors in examples/websocket/, next.config.ts, skills/).
+   257→- Dev server: `tail -25 dev.log` shows ✓ Compiled lines, GET /api/auth/me 200, GET /api/notifications 200, no compile/runtime errors. The NotificationsView is actively rendering and fetching notifications from the live API.
+   258→
+   259→Stage Summary:
+   260→- All 5 dashboard views (Network CRM, Notifications, Plan, Settings, Help) are built, lint-clean and type-clean. They reuse the BlakNet brand system (ink/cream/sage, font-display, EmptyState, Pill), the api client, the hash router (navigate), useToast, and all existing shadcn/ui + blaknet components per spec. Every view handles loading (Skeletons), empty (EmptyState) and error (AlertCircle EmptyState) states. The views are wired into src/app/page.tsx so all dashboard sidebar links now resolve to real content instead of ComingSoon. Yoco checkout, profile/password editing, and granular notification preferences are intentionally stubbed with toasts (per MVP scope). Next: Phase 3 Yoco subscription webhook + real PATCH endpoints for profile/password, plus dashboard-newsfeed / dashboard-events / dashboard-resources equivalents (other agents).
+   261→
+   262→---
+   263→Task ID: 15-views
+   264→Agent: general-purpose (Z.ai Code sub-agent)
+   265→Task: Build dashboard My Businesses list + 4-step New Business form + Business detail/verification views.
+   266→
+   267→Work Log:
+   268→- Read prior worklog + lib/{store,api,types,constants,format}, blaknet/{badges,section,logo,star-rating}, ui/{button,input,textarea,label,select,card,tabs,progress,separator,skeleton,checkbox,badge}, dashboard shell, dashboard overview (style reference), public business-profile (style reference for `useEffect`+cancelled-flag pattern + lazy sessionStorage initializer), app/page.tsx (router wiring), and the API routes GET /api/businesses/owner, POST /api/businesses, POST /api/verification, GET /api/industries. Confirmed dev server healthy (GET / 200).
+   269→- Created `src/views/dashboard/businesses.tsx` → `MyBusinessesView`:
+   270→  * Page heading "My Businesses" + subtitle + top-right primary "Add a business" button (→ dashboard-business-new).
+   271→  * Fetches GET /api/businesses/owner → `{ items: Business[] }`. Loading state: 3 pulse Skeleton rows. Error state: EmptyState with retry button. Empty state: EmptyState (Building2, "You haven't added a business yet.") with "Add your business" CTA.
+   272→  * Populated list: `card-lift` cards (responsive sm:row). Each row: logo (img or first-letter bg-ink tile), name + VerifiedBadge + BBBEEBadge + Featured Pill, tagline/industry, location + industry + views + (if NOT_VERIFIED) a muted verificationLabel pill, profile completion Progress bar + % + "add more detail" hint when <80%. Action row: outline "Edit" button → navigate({name:"dashboard-business",id}) and ink "View profile" button → navigate({name:"business",slug}).
+   273→  * `useEffect` uses cancelled-flag pattern (no synchronous setState in effect body) → no `react-hooks/set-state-in-effect` violation.
+   274→- Created `src/views/dashboard/business-new.tsx` → `NewBusinessView` (premium 4-step wizard):
+   275→  * Header eyebrow "New Business" + title + Cancel button (window.confirm discards draft, clears sessionStorage, navigates back).
+   276→  * Horizontal `Stepper` above the form card — 4 nodes (Basics / Details / Contact / Services & Products). Active = `bg-ink text-cream` (cream step circle), completed = `bg-sage/15 text-sage` with Check icon (clickable to navigate back), pending = muted. Connecting line tracks completion.
+   277→  * Form card: `rounded-2xl border border-border bg-card p-6 sm:p-8`. Each step opens with a `StepHeader` (icon tile + title + description) + Separator.
+   278→    – Step 1 (Basics): name* (required, inline error), tagline, industry Select (loaded from /api/industries), province Select (PROVINCES, required), city Input (required). All inline error text + aria-invalid.
+   279→    – Step 2 (Details): description Textarea, business size Select (BUSINESS_SIZES), year founded Input number (capped to current year), employees Select (EMPLOYEE_RANGES), annual revenue Select (REVENUE_RANGES), CIPC number Input, B-BBEE level Select (BBBEE_LEVELS).
+   280→    – Step 3 (Contact): website + email + phone + whatsapp Inputs + address Textarea. Client-side email regex + http(s):// URL validation only when filled.
+   281→    – Step 4 (Services & Products): two `TagInput` components. Each has Input + "Add" button (Enter / comma also adds), removable chip row (X button), Backspace removes last, and clickable sage suggestion pills (Services: Accounting/Consulting/Design/Logistics; Products: Report/Template/Kit/Subscription — auto-filtered once added).
+   282→  * Navigation footer: Back (disabled step 1) + "Step X of 4" + Continue / Create business. Per-step validation gates Continue (step 1 required fields; step 3 only validates filled email/website format; steps 2 & 4 always valid).
+   283→  * On submit (step 4): builds full payload (string[] services/products, numeric yearFounded, undefined for empty optionals), POSTs /api/businesses with `{method:"POST",json:payload}`. On success → clears draft, toast "Business created", navigate({name:"dashboard-business", id}). On error → toast (destructive) with message, stay on step 4.
+   284→  * State persistence: lazy useState initializer reads `sessionStorage["blaknet:draft-business"]` (typeof window guard + try/catch), `useEffect([form])` writes back on every change. Cleared on successful submit or Cancel-confirm.
+   285→  * Trust strip beneath footer: cream-grain band with 5 inline icons (ShieldCheck/Globe/Users/Calendar/CreditCard) reinforcing value props.
+   286→- Created `src/views/dashboard/business-detail.tsx` → `BusinessDetailView`:
+   287→  * Wrapper reads `route.id` and delegates to a `key`ed child so all internal state remounts on id change (same pattern as public business-profile).
+   288→  * Fetches GET /api/businesses/owner → finds business by id. Loading: pulse Skeletons. Not-found: EmptyState "Business not found" with back button.
+   289→  * Header card: logo + name + VerifiedBadge(md) + BBBEEBadge + Featured Pill, tagline, location/industry/views/added-date meta row, profile completion Progress + %. Actions row: ink "View public profile" (→ business slug), outline "Edit details" (toasts "Editing is coming soon" — simpler polished path per spec), sage-tinted "Submit for verification" button (only when !VERIFIED && !PENDING → opens inline form).
+   290→  * Inline verification form (when toggled & not VERIFIED/PENDING): card with `bg-sage/5 border-sage/30`. Close X. Select for verification type (CIPC / B-BBEE / Tax / Certification), Input for documentUrl (placeholder notes file upload coming soon), Textarea for notes. Submit POSTs /api/verification `{businessId, verificationType, notes, documentUrl}`. On success → toast "Verification submitted — we'll review within 2 business days.", reset form, refetch owner businesses to update status. On error → toast destructive.
+   291→  * `StatusCard` (4 variants): VERIFIED (sage success with badge), PENDING (muted with Clock icon + note), REJECTED (destructive with "Submit again" button → opens inline form), NOT_VERIFIED (neutral with "Request verification" button → opens inline form).
+   292→  * Services & Products card: lists services as neutral Pills + products as sage Pills with "Editing services & products is coming soon" note.
+   293→  * About card (only when description present): whitespace-pre-wrap.
+   294→  * Trust signals side card: definition list (verification status / B-BBEE level / profile completion / profile views).
+   295→  * Contact card: list of visible contact rows (website/email/phone/whatsapp/address) with clickable links; shows "No contact details yet" placeholder when none. Hides the whole row if value is null.
+   296→  * Back-link button at the top returns to dashboard-businesses.
+   297→- Wired all 3 views into `src/app/page.tsx`: added imports for MyBusinessesView, NewBusinessView, BusinessDetailView; added route branches for `dashboard-businesses` / `dashboard-business-new` / `dashboard-business`; extended the ComingSoon fallback exclusion list to include the 3 new routes.
+   298→- Lint fixes:
+   299→  • Removed synchronous `setLoading(true)` from `useEffect` body in businesses.tsx (initial state is `loading: true` so the effect only sets state in async `.then/.catch/.finally` callbacks → no `react-hooks/set-state-in-effect` violation).
+   300→  • Removed unused `// eslint-disable-next-line @next/next/no-img-element` comments (rule is OFF in eslint.config.mjs → would warn as unused directives).
+   301→  • Removed unused lucide-react imports (`ShieldCheck`, `Mail`, `Phone`, `MessageCircle`, `MapPin` in business-new.tsx; verified each import is actually referenced before adding).
+   302→  • Avoided `react-hooks/static-components` violations by declaring all sub-components (`Stepper`, `StepHeader`, `FieldError`, `TagInput`, `StatusCard`, `ContactCard`) at module level (never inside parent components). Icons rendered via static `icon: Icon` prop pattern with `<Icon className=… />` (not the dynamic `const Icon = map[name]` antipattern).
+   303→- Lint result: `bun run lint` → 0 errors, 4 warnings (all pre-existing in other agents' files: prisma/seed.ts, app/page.tsx's auth-redirect eslint-disable, components/blaknet/business-card.tsx, views/dashboard/overview.tsx). My 3 new files + page.tsx edits: 0 errors, 0 new warnings.
+   304→- TypeScript: `bunx tsc --noEmit` → 0 errors in my files (pre-existing errors only in examples/, skills/, next.config.ts).
+   305→- Dev server: `tail dev.log` shows continuous `✓ Compiled in Nms` lines with no compile/runtime errors. `GET / 200` after wiring confirmed clean page render.
+   306→
+   307→Stage Summary:
+   308→- Three dashboard views are live and reachable from the dashboard sidebar (My Businesses → list, Add a business → 4-step wizard, business row Edit button → detail/verification). All reuse the BlakNet brand system (ink/cream/sage, font-display, card-lift, Pill, VerifiedBadge, BBBEEBadge, SectionHeading, EmptyState), shadcn/ui primitives, the hash router, the `api` client, and the `useToast` hook.
+   309→- Each view handles loading (Skeletons), empty (EmptyState) and error (toast + fallback) states. The new-business form persists to sessionStorage across refreshes and clears on success/cancel. The detail view supports verification submission end-to-end (POST /api/verification → toast + refetch → status badge flips to PENDING). Edit-mode for existing businesses is intentionally stubbed as "coming soon" per spec; services/products editing likewise.
+   310→- Next: full inline business edit (PATCH endpoint + edit form reuse), file upload for verification documents (replacing the URL paste), and Yoco subscription activation for the Verified plan upgrade path.
+   311→
+   312→---
+   313→Task ID: FINAL
+   314→Agent: Z.ai Code (main)
+   315→Task: Wire all views into router, verify full golden path with agent-browser, finalize.
+   316→
+   317→Work Log:
+   318→- Wired DirectoryView + BusinessProfileView into page.tsx router (subagent 7-8 had left this).
+   319→- Wired dashboard-newsfeed/events/resources to reuse the public NewsfeedView/EventsView/ResourcesView inside DashboardShell.
+   320→- Ran `bun run lint` → 0 errors, 0 warnings (after --fix removing 4 unused eslint-disable directives).
+   321→- End-to-end browser verification (agent-browser) of the full golden path:
+   322→  1. Home renders premium hero + featured businesses (API-driven) — VLM-rated premium.
+   323→  2. Directory renders 13 businesses with working filters (Construction filter → 1 result, active-chip row, pagination).
+   324→  3. Business profile renders verified badge, B-BBEE, services, products, reviews, CTAs.
+   325→  4. Newsfeed/Events/Resources all render with live API data.
+   326→  5. Pricing (3 tiers, highlighted Verified) + About (editorial journey) render.
+   327→  6. Auth: demo login + admin login both work; register form validates.
+   328→  7. Dashboard overview: greeting, 4 stat cards, my-businesses rows (completion bars), recent activity, subscription card.
+   329→  8. Business creation: 4-step wizard (Basics→Details→Contact→Services&Products) → POST /api/businesses → navigates to detail page. Created "Test Township Traders".
+   330→  9. Verification loop: owner submits CIPC verification request → status "Verification in review" → admin sees it in queue with notes → Approve dialog → PATCH /api/admin/verification → "Verification approved" + business verificationStatus flips to VERIFIED + queue clears. Full trust loop proven.
+   331→  10. Admin overview: 6 stat cards (users, businesses, verified, pending, subscriptions, posts) + recent registrations.
+   332→
+   333→Stage Summary:
+   334→- BlakNet Phase 1 MVP is COMPLETE and FULLY FUNCTIONAL end-to-end.
+   335→- All 13 public routes + 12 dashboard routes + 2 admin routes implemented as a single-page app at `/` with hash routing.
+   336→- Database: 12 realistic SA demo businesses across 12 industries + 9 provinces, 6 events, 12 resources, 6 newsfeed posts, demo user (demo@blaknet.co.za / blaknet123, VERIFIED plan, owns Lwazi Cloud Systems) + admin (admin@blaknet.co.za / blaknetadmin).
+   337→- Design: brand palette #1D2534 (ink) / #F6F6DF (cream) / #717568 (sage), Geist + Instrument Serif, premium minimal neutral aesthetic — VLM-verified as "sophisticated, premium, modern".
+   338→- Lint: 0 errors, 0 warnings. Dev server: healthy, no runtime errors.
+   339→- Known coming-soon (clearly marked, per spec rule "do not build fake functionality"): Yoco payment checkout (toasts), profile editing, password change, granular notification prefs, Intelligence-suite advanced analytics, account deletion — all stubbed with honest toasts/placeholders.
+   340→
+   341→Unresolved / Next-phase recommendations:
+   342→- Phase 2 polish: real image uploads for business logos/covers (currently SVG data-uri initials), post image uploads.
+   343→- Phase 3: real Yoco subscription checkout + webhook → subscription status updates.
+   344→- Phase 4: Intelligence Hub (procurement alerts, competitor benchmarking, transaction signals, API access).
+   345→- SEO: since this is a single `/` route with hash routing, consider migrating to real Next.js dynamic routes for public business profiles for true SEO/crawlability.
+   346→- Add automated tests.
+   347→

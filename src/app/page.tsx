@@ -22,6 +22,7 @@ import { MyBusinessesView } from "@/views/dashboard/businesses";
 import { NewBusinessView } from "@/views/dashboard/business-new";
 import { BusinessDetailView } from "@/views/dashboard/business-detail";
 import { NetworkView } from "@/views/dashboard/network";
+import { FollowingView } from "@/views/dashboard/following";
 import { NotificationsView } from "@/views/dashboard/notifications";
 import { PlanView } from "@/views/dashboard/plan";
 import { SettingsView } from "@/views/dashboard/settings";
@@ -92,6 +93,7 @@ export default function Page() {
         {route.name === "dashboard-business-new" && <NewBusinessView />}
         {route.name === "dashboard-business" && <BusinessDetailView />}
         {route.name === "dashboard-network" && <NetworkView />}
+        {route.name === "dashboard-following" && <FollowingView />}
         {route.name === "dashboard-notifications" && <NotificationsView />}
         {route.name === "dashboard-plan" && <PlanView />}
         {route.name === "dashboard-settings" && <SettingsView />}
@@ -105,6 +107,7 @@ export default function Page() {
           "dashboard-business-new",
           "dashboard-business",
           "dashboard-network",
+          "dashboard-following",
           "dashboard-notifications",
           "dashboard-plan",
           "dashboard-settings",

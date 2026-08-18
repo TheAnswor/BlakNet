@@ -344,3 +344,160 @@ Unresolved / Next-phase recommendations:
 - Phase 4: Intelligence Hub (procurement alerts, competitor benchmarking, transaction signals, API access).
 - SEO: since this is a single `/` route with hash routing, consider migrating to real Next.js dynamic routes for public business profiles for true SEO/crawlability.
 - Add automated tests.
+
+---
+Task ID: STYLING-DIR-BIZ
+Agent: general-purpose (Z.ai Code sub-agent)
+Task: Polish Directory + Business Profile view styling (VLM-identified issues).
+
+Work Log:
+- Read worklog.md + the two existing view files (src/views/public/directory.tsx, src/views/public/business-profile.tsx), src/app/globals.css (confirmed new utility classes: .card-lift, .card-soft, .glass, .glass-dark, .btn-lift, .animate-fade-in-up, .shimmer, .scroll-elegant), src/components/blaknet/badges.tsx (Pill tones), src/components/blaknet/business-card.tsx (confirmed button-root + accepts className), src/components/ui/sheet.tsx (SheetContent has built-in X close). Confirmed `cn` helper in src/lib/utils.ts. Dev server healthy.
+- Edited `src/views/public/directory.tsx` (6 fixes):
+  1. Wrapped entire filter sidebar (Filters heading + Separator + 5 FilterSections + Clear-all button) in a single sticky card `rounded-xl border border-border bg-card p-5 card-soft lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto scroll-elegant`. Renamed the local `sidebar` const → `filterCard`. Heading is `font-display text-xl tracking-tight`; a "Clear all" link sits at heading-right when filters active; a full-width "Clear all filters" Button (ghost) appears at the card bottom when filters active. Mobile Sheet uses the SAME `filterCard` inside `<div className="p-5">` (dropped the redundant custom sheet header chrome — SheetContent already provides the X close button).
+  2. Removed the redundant in-page search Input above the results grid (kept the result-count + active-filter-chips + sort bar). Preserved the existing `initialSearch` / `qInput` / debounce-to-`filters.q` machinery and the chip-clear handler so a non-empty `q` from sessionStorage still drives search AND renders as a removable chip in the active-filter row.
+  3. Moved the Sort `Select` to the far right of the results metadata bar. The bar is now: left = result count text ("Showing 1–12 of N" / "No matches" / "Searching…"), right = compact "Page X of Y" + "Sort by" label + `h-8 w-[150px] rounded-full` Select.
+  4. Active-filter state on rows: `FilterCheckbox` now applies `bg-sage/[0.08]` rounded background to its `<label>` container AND `font-semibold text-foreground` on the label text when `checked` is true (uses `cn` for conditional class merge). Padding tightened to `px-2 py-1.5` and section lists to `space-y-1` so the tinted rows read as a cohesive group.
+  5. Active-filter chip row: each chip restyled to `bg-ink text-cream` pill with `hover:bg-ink/85` brighten, X icon in `text-cream/70`. The "Clear all" link stays as a sage text button at the row end.
+  6. Card grid verified: `grid gap-5 sm:grid-cols-2 xl:grid-cols-3` (unchanged). Each BusinessCard is now wrapped in `<div className="animate-fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>` for a staggered mount effect (only when not loading). Passed `className="h-full"` to BusinessCard so cards stretch to equal row height inside their wrapper divs.
+  7. Cleaned up unused imports: removed `Input` (no longer rendered) and `Search` icon (only used by the removed Input). Added `cn` import. All other imports/hooks/state preserved.
+- Edited `src/views/public/business-profile.tsx` (5 fixes):
+  1. Header/body transition (option b — layered "card rising out of the dark"): reduced body section top padding from `py-10` → `pb-10 pt-2 sm:pt-4 lg:pb-10` and gave the first content card (About) `className="-mt-4 sm:-mt-8 relative z-10 shadow-xl"` so it overlaps the dark `bg-ink-grain` header by ~0.5rem mobile / ~1rem desktop. Achieved by extending the local `Card` component to accept an optional `className` prop (merged via `cn`), preserving all existing callers (no className → unchanged render).
+  2. Action button hierarchy in header CTAs: "Website" = primary `bg-cream text-ink` + `btn-lift` + `shadow-lg` + `h-10 px-4`. "Email" = secondary outline `border-cream/25 text-cream hover:bg-cream/10` + `h-10 px-4`. "WhatsApp" — when website present: subtle green-tinted outline `border-sage/40 bg-sage/10 text-cream hover:bg-sage/20`; when website absent: solid primary `bg-sage text-cream` + `btn-lift` + `shadow-lg` (becomes the primary CTA). "Share" = ghost `text-cream/70 hover:bg-cream/10 hover:text-cream`. All buttons `h-10 px-4`.
+  3. Sidebar label/value contrast: extended `InfoRow` to accept an optional `icon` prop. Labels are now `text-xs font-medium uppercase tracking-wide text-muted-foreground`; values are `text-sm font-semibold text-foreground`. Each label gets a small icon in `text-foreground/40` placed before the label text. Wired icons: Calendar (year founded), Building2 (business size), Users (employees), Banknote (annual revenue), FileText (CIPC number), Award (B-BBEE level). `ContactRow` icon container switched from `text-muted-foreground` to `text-foreground/40`; label upgraded from `text-[10px]` to `text-xs font-medium uppercase tracking-wide`; value upgraded from plain `text-sm` to `text-sm font-semibold text-foreground`. Added lucide-react imports: Users, Banknote, FileText, Award.
+  4. Review section visibility & polish: restructured the Reviews card header so the average rating is a big `font-display text-4xl text-ink` number, with a small "Reviews" eyebrow, StarRating, and "(N reviews)" beside it; the "Leave a review" Button (outline sm) sits on the right (hidden when the inline form is open). Removed the previous separate cream-grain summary block (info now lives in the header). Each review `<li>` gets a sage left-border accent: `border border-border border-l-2 border-l-sage bg-card/60 p-4`. Reviewer name → `text-sm font-medium text-foreground`; company → `text-xs text-muted-foreground`; star row; review text → `text-sm leading-relaxed text-foreground/80`; timeAgo → `text-xs text-muted-foreground` on the right.
+  5. Services & Products as clickable pills + grouped subsections: merged the previously-separate Services and Products cards into ONE card titled "Services & Products" with two clearly-titled subsections (`text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground` headers — "Services" and "Products"). Each pill now has `cursor-pointer transition-colors hover:bg-ink hover:text-cream hover:border-ink` so the click (which navigates to directory search via `searchByTag`) feels responsive. Kept the existing `hover:-translate-y-0.5` lift on the wrapping button.
+  6. Modified `Card` component to accept optional `className` prop (merged via `cn`) — needed for the About card overlap. All existing `Card` callers (About, Services & Products, Reviews, Business Information, Contact, Trust Signals) still work; only About passes a className.
+- Lint: `bun run lint` → 0 errors, 0 warnings across the whole project (my two files included). Cleaned up the two newly-unused imports (`Input`, `Search`) in directory.tsx proactively.
+- TypeScript: `bunx tsc --noEmit` → 0 errors in my files (no directory.tsx or business-profile.tsx entries in the error output).
+- Dev server: `tail dev.log` → continuous `✓ Compiled in Nms` lines, `GET / 200`, no compile/runtime errors after the edits. Multiple successful recompiles.
+- Verified no logic changes: all `'use client'` directives, imports (other than the two unused), hooks (useApp, useToast, useState, useEffect, useMemo), state shapes (`filters`, `qInput`, `sort`, `page`, `data`, `loading`, `mobileFiltersOpen`, `business`, `notFound`, `showReviewForm`, `reviewRating`, `reviewText`, `reviewCompany`, `submittingReview`, `localReviews`), API calls (`/api/businesses`, `/api/businesses/[slug]`, `/api/businesses/[slug]/view`, `/api/businesses/[slug]/reviews`, `/api/industries`), event handlers (`toggleArrayFilter`, `clearAll`, `submitReview`, `shareProfile`, `searchByTag`), routing (`navigate({name:"business",slug})`, `navigate({name:"directory"})`, `navigate({name:"login"})`, `navigate({name:"dashboard-business",id})`), and component signatures (`DirectoryView`, `BusinessProfileView`, `Card`, `CardTitle`, `InfoRow`, `ContactRow`, `TrustRow`, `FilterSection`, `FilterCheckbox`) are preserved. `BusinessProfileView` still early-returns null when `route.name !== "business"` and delegates to the keyed `BusinessProfile` child for clean per-slug remount. `Card` and `InfoRow` only gained optional props (className, icon) — fully backwards-compatible.
+
+Stage Summary:
+- Both `DirectoryView` and `BusinessProfileView` received the VLM-prescribed styling polish without any logic/feature/routing changes. Directory now has a single sticky filter card, a cleaner results metadata bar (count + compact Sort), bg-ink active-filter chips, sage-tinted active filter rows, and staggered fade-in-up animation on result cards. Business Profile now has a layered "card rising out of the dark" About card overlapping the dark header, clear primary/secondary/ghost CTA hierarchy (Website primary, WhatsApp green-tinted secondary or sage-primary fallback, Email outline, Share ghost), uppercase-tracked label + semibold value + icon row pattern across Business Information & Contact sidebars, a prominent Reviews header with big font-display rating + sage-accented review list, and a single Services & Products card with hover-flip clickable pills. Both files lint-clean, type-clean, and compile cleanly on the dev server. Existing page.tsx imports / hash router wiring unchanged.
+
+---
+Task ID: FEAT-EDIT-FOLLOW
+Agent: general-purpose (Z.ai Code sub-agent)
+Task: Build business edit UI + follow button + followed list (frontend only).
+
+Work Log:
+- Read worklog.md, business-profile.tsx, business-detail.tsx, lib/types.ts, lib/store.ts, components/dashboard/shell.tsx, app/page.tsx, lib/constants.ts, lib/format.ts, components/blaknet/{section,badges,business-card}.tsx, views/dashboard/business-new.tsx (TagInput pattern reference), components/ui/{dialog,tabs,button,badge,skeleton}.tsx, lib/api.ts. Confirmed `Business` type already exposes `following`, `followerCount`, `isOwner` optional fields.
+- CREATED `src/components/blaknet/follow-button.tsx` → `FollowButton`:
+  * Props: `{ businessId, initialFollowing, followerCount, onChange?, businessName?, tone? }`. `tone` defaults to `"default"` (light surface — `border-border` outline + `bg-ink text-cream` solid) and supports `"onDark"` for the public profile's dark hero band (cream-tinted outline + `bg-cream text-ink` solid + `fill-ink` heart).
+  * If `!authUser`: outline button with `Heart` icon + "Follow"; onClick → toast "Sign in to follow businesses" + `navigate({name:"login"})`.
+  * If authed & not following: outline button (Heart outline) + "Follow". Click → optimistic flip (set following=true, count++) + POST `/api/businesses/{id}/follow`. On success → reconcile with server's `following` boolean (undo optimistic delta if wrong), toast "You're now following this business" (+ optional `Following {bizName}.` description). On error → revert optimistic state + destructive toast.
+  * If following: solid `bg-ink text-cream` button with `Heart fill-cream` + "Following". Click → unfollow (same optimistic + revert pattern, toast "Unfollowed").
+  * Loading: `Loader2` spin replaces the heart icon; button disabled.
+  * Follower count rendered as a muted `Users`-icon badge next to the button (h-9 to match button height). `btn-lift` hover effect on both states.
+- EDITED `src/views/public/business-profile.tsx`:
+  * Imported `FollowButton` from `@/components/blaknet/follow-button`.
+  * In the header CTA row (the `flex flex-wrap gap-2 lg:justify-end` container on the dark `bg-ink-grain` hero), inserted the FollowButton between the WhatsApp button and the Share button. Passed `businessId={b.id}`, `businessName={b.name}`, `initialFollowing={b.following ?? false}`, `followerCount={b.followerCount ?? 0}`, `tone="onDark"`.
+  * If `b.isOwner`: instead of the FollowButton, render a subtle "Your business" pill (`border-cream/20 bg-cream/5 text-cream/80` with `Building2` icon, h-10 to match the CTA row).
+  * All existing styling/structure preserved exactly (Website/Email/WhatsApp/Share buttons, profile-completion bar, body grid, reviews, sidebar, skeleton).
+- EDITED `src/views/dashboard/business-detail.tsx` — replaced the "coming soon" edit stub with a REAL edit modal:
+  * Added imports: `useEffect` (already), `useState` (already), `type KeyboardEvent`, `Label`, `Dialog/DialogContent/DialogHeader/DialogTitle/DialogDescription/DialogFooter`, `Tabs/TabsList/TabsTrigger/TabsContent`, `PROVINCES/BUSINESS_SIZES/EMPLOYEE_RANGES/REVENUE_RANGES/BBBEE_LEVELS`, `Industry` type, `Plus/Save/Loader2` icons. Removed unused `useMemo` import.
+  * Added `EditFormState` interface (string-typed form fields + `services: string[]` + `products: string[]`).
+  * Added helper functions: `editFormFromBusiness(b)` (maps `Business` → `EditFormState`, flattening `services`/`products` arrays to name strings), `buildEditPayload(form)` (trims strings, converts `yearFounded` to Number, returns `undefined` for empty optionals so PATCH only updates provided fields), `editBusinessMerge(form)` (best-effort Partial<Business> for local state update if the API response is missing a fresh business object).
+  * Added state: `editOpen`, `editForm` (null when dialog closed), `industries` (loaded from `/api/industries` on mount), `saving`.
+  * `openEdit()`: syncs `editForm` from the current `business`, opens dialog.
+  * `handleEditSave()`: validates name, sets `saving=true`, builds payload via `buildEditPayload`, PATCHes `/api/businesses/{id}/edit`, on success updates local business state from `res.business ?? {...business, ...editBusinessMerge(editForm)}`, closes dialog, clears form, toasts "Business updated — Your changes are live.", calls `refetch()` to pull the authoritative owner-list copy. On error: destructive toast with the message.
+  * Replaced `handleEditClick` (the old toast-stub) — the "Edit details" button now calls `openEdit`.
+  * Replaced the misleading "Editing services & products is coming soon" note in the Services & Products card with a helpful pointer: "Use 'Edit details' above to update services & products." (Pencil icon).
+  * Also updated the Contact card's empty-state copy from "Add them from the new business flow soon — editing is coming." → "Use 'Edit details' above to add them." (now accurate since the modal supports editing contact fields).
+  * Added `EditBusinessDialog` component (rendered conditionally when `editForm` is non-null). Dialog `max-w-2xl` with `max-h-[90vh] overflow-y-auto`. Header: "Edit business" + description. Body: a `Tabs` with two tabs:
+    – "Details" tab: name* (Input), tagline (Input), description (Textarea), then a 2-column `sm:grid-cols-2` of: industry (Select from `/api/industries`), province (Select PROVINCES), city (Input), address (Input), website/email/phone/whatsapp (Inputs), businessSize (Select BUSINESS_SIZES), yearFounded (number Input), employeeCount (Select EMPLOYEE_RANGES), annualRevenue (Select REVENUE_RANGES), cipcNumber (Input), bbbeeLevel (Select BBBEE_LEVELS). All prefilled from `editForm`.
+    – "Services & Products" tab: two `EditTagInput` sections (reusing the create-form pattern — Input + "Add" button, Enter/comma to add, Backspace removes last, removable chips with X, sage suggestion pills auto-filtered once added). Prefilled with `form.services` and `form.products` (mapped from the business's existing services/products arrays).
+  * Footer: "Cancel" (outline, closes dialog without saving) + "Save changes" (`bg-ink text-cream`, disabled while saving or if name is empty, shows `Loader2` spin + "Saving…" while in flight, otherwise `Save` icon + "Save changes").
+  * Added `EditTagInput` sub-component (module-level, fully typed) — same UX as the create-form `TagInput` but adapted to the dialog context.
+  * Preserved all existing functionality: verification submit (StatusCard + inline form), trust signals, services/products display, contact card, profile completion bar, view-public-profile button, skeleton, not-found EmptyState.
+- CREATED `src/views/dashboard/following.tsx` → `FollowingView`:
+  * Local `FollowedBusiness = Business & { followedAt?: string | null }` type (extends Business with the follow timestamp returned by `/api/businesses/followed`).
+  * `load()` async function fetches `GET /api/businesses/followed` → `{ items: FollowedBusiness[] }`. Called from `useEffect([])` on mount. (Extracted to a named function to avoid the `react-hooks/set-state-in-effect` lint rule — same pattern as `views/dashboard/network.tsx`.) Error state captured for retry UI.
+  * Header: sage eyebrow "Following" (Heart icon) + `font-display text-3xl sm:text-4xl` title + subtitle "Businesses you're tracking on BlakNet." + count badge ("N businesses") when populated.
+  * Loading: 6-card skeleton grid (`grid gap-5 sm:grid-cols-2 lg:grid-cols-3`).
+  * Error: centered destructive card with AlertCircle + message + "Try again" button (re-calls `load()`).
+  * Empty: `EmptyState` with `Heart` icon, title "You're not following any businesses yet.", description "Follow businesses to track their updates, events and announcements.", action button "Explore the directory" (ArrowRight) → `navigate({name:"directory"})`.
+  * Grid: `grid gap-5 sm:grid-cols-2 lg:grid-cols-3` of `FollowedCard`s, each with `card-lift animate-fade-in-up` and a staggered `animationDelay` (40ms × index, capped at 8).
+  * `FollowedCard`: top strip (`bg-ink-grain` h-20) with logo overlapping the strip (14×14 rounded-lg, border-2 border-card, falls back to ink tile with first-letter), VERIFIED pill in the top-right corner when verified. Body: name (font-display), tagline (line-clamp-2), industry+location meta row (Building2 + MapPin icons), BBBEEBadge if present, "Following since {date}" row (CalendarHeart icon + `formatDate`), and a "View profile" outline button (`btn-lift`, ArrowRight) in a top-bordered footer that navigates to `business` route with the slug.
+  * `FollowingCardSkeleton` sub-component for the loading state.
+- WIRING:
+  * `src/lib/types.ts`: added `| { name: "dashboard-following" }` to the `Route` union.
+  * `src/lib/store.ts`: in `parseHash`, under the `dashboard` switch case, added `if (b === "following") return { name: "dashboard-following" };` after the `network` branch. (`routeToHash` already handles `dashboard-following` → `#/dashboard/following` via its default case.)
+  * `src/components/dashboard/shell.tsx`: imported `Heart` from lucide-react; added `{ label: "Following", icon: Heart, route: { name: "dashboard-following" }, match: ["dashboard-following"] }` to the `NAV` array, placed immediately after "My Network". `currentLabel()` already handles unknown names gracefully.
+  * `src/app/page.tsx`: imported `FollowingView` from `@/views/dashboard/following`; added `{route.name === "dashboard-following" && <FollowingView />}` branch inside `<DashboardShell>` (placed after `dashboard-network`); added `"dashboard-following"` to the ComingSoon exclusion array.
+- BACKEND COMPATIBILITY FIX (minimal, contract-preserving):
+  * The pre-built backend placed the new endpoints at `src/app/api/businesses/[id]/edit/route.ts` and `src/app/api/businesses/[id]/follow/route.ts`. Next.js requires the SAME dynamic-segment name at a given path level, and the existing `src/app/api/businesses/[slug]/route.ts` already uses `[slug]`. This conflict produced `Error: You cannot use different slug names for the same dynamic path ('slug' !== 'id')` on every dev-server compile and made every page return HTTP 500 (dev.log was flooded).
+  * Fix: moved both handlers into the existing `[slug]/` directory as `[slug]/edit/route.ts` and `[slug]/follow/route.ts`. The route-handler signature now destructures `{ slug: id } = await params` — i.e. the URL path segment is still the business ID (per the task spec's API contract); only Next.js's internal param name changed to `[slug]` so the routes coexist. All DB lookups still use `id` (no business-lookup-by-slug fallback added — contract unchanged). Removed the now-empty `src/app/api/businesses/[id]/` directory. The frontend continues to pass `business.id` as the URL path segment.
+  * After the fix: `GET / 200`, `GET /api/industries 200`, `GET /api/businesses/followed 200` confirmed in dev.log. No more route-conflict errors.
+- Lint: `bun run lint` → 0 errors, 0 warnings across the entire project (my new files + edits included). Initial run flagged one `react-hooks/set-state-in-effect` error in `following.tsx` (synchronous `setLoading(true)` inside `useEffect` body); fixed by extracting the fetch into a named `load()` async function called from the effect (matches the existing `network.tsx` pattern).
+- TypeScript: `bunx tsc --noEmit` → 0 errors in any of my files (follow-button.tsx, following.tsx, business-detail.tsx, business-profile.tsx, store.ts, types.ts, shell.tsx, app/page.tsx, and the two new backend route files).
+- Dev server: `tail dev.log` → clean. `GET / 200 in 51ms`, `GET /api/industries 200`, `GET /api/businesses/followed 200`. No compile/runtime errors after the route-conflict fix.
+
+Stage Summary:
+- Three new frontend capabilities are live end-to-end:
+  1. Follow/unfollow from the public business profile header (optimistic, toast feedback, follower-count badge, owner-aware "Your business" pill, dark-hero tone support).
+  2. Full business edit modal on the dashboard business-detail page (Dialog + Tabs: Details + Services & Products), PATCHing `/api/businesses/{id}/edit`, refetching on success.
+  3. New `dashboard-following` route + sidebar nav item rendering a followed-businesses grid with logo, name, tagline, industry, location, verified badge, BBBEE badge, "Following since {date}", and a "View profile" CTA.
+- All UI uses only the existing shadcn/ui + blaknet component set, brand tokens (`bg-ink`, `text-cream`, `bg-cream`, `bg-sage`, `text-sage`, `bg-ink-grain`, `bg-card`, `border-border`, `text-muted-foreground`, `font-display`), and new utilities (`.card-lift`, `.btn-lift`, `.animate-fade-in-up`). NO blue/indigo. TypeScript strict, no `any`. Loading + empty + error states everywhere.
+- Side-effect: unblocked the dev server by resolving the pre-existing `[slug]` vs `[id]` Next.js dynamic-route naming conflict (introduced by the backend agent who built the edit/follow endpoints). Frontend API contract unchanged.
+- Next: file uploads for verification documents, image uploads for business logos/covers, real Yoco subscription checkout.
+
+---
+Task ID: CRON-QA-1
+Agent: Z.ai Code (main) — web dev review cron round 1
+Task: Assess status, QA via agent-browser + VLM, fix bugs, add features, improve styling.
+
+## Current Project Status Assessment
+BlakNet MVP (Phase 1+2+trust loop) was complete and functional from prior rounds. This round focused on: (a) comprehensive VLM-driven styling QA + polish, (b) adding the most-requested functional gap (business editing), and (c) a new follow feature.
+
+## QA Performed
+- agent-browser golden-path tests across home, directory, business profile, newsfeed, dashboard, admin (all pass).
+- VLM critical reviews of home (7 issues), directory (6 issues), business profile (5 issues), newsfeed (5 issues) — identified concrete styling/UX gaps.
+- 404 handling verified (nonexistent business slug → "Business not found" EmptyState).
+- Lint: 0 errors, 0 warnings throughout.
+
+## Completed Modifications
+
+### Styling Polish (globals.css + 4 views)
+1. **globals.css**: Added `.card-lift` (deeper shadow + 4px hover lift + border-color shift), `.card-soft` (subtle panel shadow), `.glass`/`.glass-dark` (glassmorphism with backdrop-blur), `.btn-lift` (button hover lift), `.animate-fade-in-up` (mount animation), `.shimmer`, `.animate-soft-pulse`.
+2. **Home**: hero atmospheric glow gradients (sage blur orbs), glassmorphism stats panel, button hover lifts + colored shadows, journey cards with hover icon-scale + number color shift, capabilities cards with hover depth, staggered fade-in on featured business cards, refined testimonial (ring + "Verified member"), CTA section with glow + shadow.
+3. **Directory** (via subagent STYLING-DIR-BIZ): filter sidebar wrapped in sticky card container with card-soft shadow, removed redundant search bar (relies on header search), sort moved to results metadata bar (compact), active filter rows tinted with `bg-sage/8` + font-semibold, active-filter chips `bg-ink text-cream`, staggered card animations.
+4. **Business Profile** (via subagent): body card rises out of dark header with negative margin + shadow-xl (layered effect), CTA hierarchy (Website=solid primary, Email/WhatsApp=outline, Share=ghost), sidebar labels uppercase muted + values font-semibold + contextual icons (Calendar/Users/Banknote/FileText/Award/Globe/Mail/Phone/MapPin), reviews with big font-display rating + sage left-border per review, services/products as clearly clickable hover-fill pills.
+5. **Newsfeed composer**: Post button `btn-lift` + shadow-md + disabled:opacity-40, type toggles with clearer active state (shadow-sm) + hover border-darken, "Type:" label, border-top separator, avatar/textarea alignment fix.
+6. **Header**: Join BlakNet button `btn-lift` + shadow.
+
+### New Features
+1. **Business editing** (most-requested gap, now functional end-to-end):
+   - `PATCH /api/businesses/[slug]/edit` — owner-only, partial update, re-slugs on name change, recomputes profile completion, replaces services/products arrays.
+   - Dashboard business-detail: `EditBusinessDialog` with Tabs (Details / Services & Products), prefilled form, tag-input components for services/products, Save → PATCH → toast "Business updated" → refetch.
+   - Verified: edited Lwazi's services (added "Cloud Consulting") → persisted → appears on public profile.
+2. **Business follow** (new social feature):
+   - Prisma `BusinessFollow` model (unique [businessId, userId]) + relations on User & Business.
+   - `POST /api/businesses/[slug]/follow` — toggle follow, notifies business owner on new follow.
+   - `GET /api/businesses/followed` — list followed businesses.
+   - `GET /api/businesses/[slug]` now returns `following`, `followerCount`, `isOwner`.
+   - `FollowButton` component (optimistic, owner-aware, login-gated) on public business profile header.
+   - New `FollowingView` dashboard page + new `dashboard-following` route + "Following" nav item (Heart icon) in dashboard sidebar.
+   - Verified: followed SolarSizwe as demo → appears on Following page with "Following since" date.
+
+### Bug Fixed (critical)
+- **Next.js route param conflict**: `[id]` vs `[slug]` dynamic segments at same path level caused `Error: You cannot use different slug names`. Resolved by consolidating all business-by-id endpoints under `[slug]/` (edit, follow) with internal `slug: id` destructuring. URL contract unchanged (still passes business.id).
+- **Stale Prisma client**: after adding `BusinessFollow` model, the running dev server held an old `@prisma/client` in memory (global singleton in db.ts). Fixed db.ts to invalidate the singleton on schema-version change. Required a full dev-server restart to load the regenerated client.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy, all APIs 200.
+- VLM ratings after polish: Home 8.5/10, Directory 9/10, Business Profile 9/10, Newsfeed 8/10 (all up from "good but needs work").
+- Functional tests: follow toggle ✓, edit+save+persist ✓, Following page ✓, 404 handling ✓.
+
+## Unresolved Issues / Risks
+- **Dev server restart required after Prisma schema changes**: the global PrismaClient singleton isn't hot-reloadable; a full process restart is needed. Mitigated by db.ts schema-version check, but the running process must be killed+restarted manually if the system supervisor doesn't auto-restart. (This round: had to `setsid`-restart the dev server twice.)
+- **Remaining VLM polish items** (minor, non-blocking): softer multi-layer shadow on business-profile header transition; service-pill active/press micro-interactions; newsfeed Post disabled-state affordance; mobile bottom-sheet for directory filters (currently uses Sheet, which is fine).
+- **SEO**: still single `/` route with hash routing (noted in prior round).
+
+## Priority Recommendations for Next Phase
+1. **Phase 3 — Yoco subscription checkout**: real payment integration + webhook → subscription status updates (currently stubbed with toasts). This unlocks the Verified/Intelligence revenue path.
+2. **Image uploads**: business logos/covers + post images (currently SVG initials/text-only). Use a storage bucket or base64-in-DB for MVP.
+3. **Profile editing**: extend the edit pattern to user profiles (firstName/lastName/phone/bio/avatar) — the Settings tab currently toasts "coming soon".
+4. **Intelligence Hub scaffolding**: procurement alerts, competitor benchmarking (clearly marked "coming soon" per spec, but architecture should be laid out).
+5. **Search improvements**: PostgreSQL full-text search is noted as future; current SQLite `contains` works for MVP but consider adding a search-rank/score.

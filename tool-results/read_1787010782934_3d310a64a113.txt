@@ -1,0 +1,847 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+     4→import { useApp } from "@/lib/store";
+     5→import { api } from "@/lib/api";
+     6→import { useToast } from "@/hooks/use-toast";
+     7→import { Button } from "@/components/ui/button";
+     8→import { Input } from "@/components/ui/input";
+     9→import { Textarea } from "@/components/ui/textarea";
+    10→import { Label } from "@/components/ui/label";
+    11→import { Separator } from "@/components/ui/separator";
+    12→import {
+    13→  Select,
+    14→  SelectTrigger,
+    15→  SelectValue,
+    16→  SelectContent,
+    17→  SelectItem,
+    18→} from "@/components/ui/select";
+    19→import {
+    20→  PROVINCES,
+    21→  BUSINESS_SIZES,
+    22→  EMPLOYEE_RANGES,
+    23→  REVENUE_RANGES,
+    24→  BBBEE_LEVELS,
+    25→} from "@/lib/constants";
+    26→import type { Industry } from "@/lib/types";
+    27→import { cn } from "@/lib/utils";
+    28→import {
+    29→  ArrowRight,
+    30→  ArrowLeft,
+    31→  Check,
+    32→  Plus,
+    33→  X,
+    34→  Sparkles,
+    35→  AlertCircle,
+    36→  Building2,
+    37→  FileText,
+    38→  Globe,
+    39→  Briefcase,
+    40→  Package,
+    41→  Calendar,
+    42→  Users,
+    43→  CreditCard,
+    44→  ShieldCheck,
+    45→} from "lucide-react";
+    46→
+    47→const DRAFT_KEY = "blaknet:draft-business";
+    48→
+    49→interface FormState {
+    50→  name: string;
+    51→  tagline: string;
+    52→  industryId: string;
+    53→  province: string;
+    54→  city: string;
+    55→  description: string;
+    56→  businessSize: string;
+    57→  yearFounded: string;
+    58→  employeeCount: string;
+    59→  annualRevenue: string;
+    60→  cipcNumber: string;
+    61→  bbbeeLevel: string;
+    62→  website: string;
+    63→  email: string;
+    64→  phone: string;
+    65→  whatsapp: string;
+    66→  address: string;
+    67→  services: string[];
+    68→  products: string[];
+    69→}
+    70→
+    71→const INITIAL: FormState = {
+    72→  name: "",
+    73→  tagline: "",
+    74→  industryId: "",
+    75→  province: "",
+    76→  city: "",
+    77→  description: "",
+    78→  businessSize: "",
+    79→  yearFounded: "",
+    80→  employeeCount: "",
+    81→  annualRevenue: "",
+    82→  cipcNumber: "",
+    83→  bbbeeLevel: "",
+    84→  website: "",
+    85→  email: "",
+    86→  phone: "",
+    87→  whatsapp: "",
+    88→  address: "",
+    89→  services: [],
+    90→  products: [],
+    91→};
+    92→
+    93→const STEPS = [
+    94→  { id: 1, label: "Basics" },
+    95→  { id: 2, label: "Details" },
+    96→  { id: 3, label: "Contact" },
+    97→  { id: 4, label: "Services & Products" },
+    98→] as const;
+    99→
+   100→const SERVICE_SUGGESTIONS = ["Accounting", "Consulting", "Design", "Logistics"];
+   101→const PRODUCT_SUGGESTIONS = ["Report", "Template", "Kit", "Subscription"];
+   102→
+   103→export function NewBusinessView() {
+   104→  const { navigate } = useApp();
+   105→  const { toast } = useToast();
+   106→
+   107→  const [form, setForm] = useState<FormState>(() => {
+   108→    if (typeof window === "undefined") return INITIAL;
+   109→    try {
+   110→      const raw = window.sessionStorage.getItem(DRAFT_KEY);
+   111→      if (raw) {
+   112→        const parsed = JSON.parse(raw) as Partial<FormState>;
+   113→        return { ...INITIAL, ...parsed, services: parsed.services ?? [], products: parsed.products ?? [] };
+   114→      }
+   115→    } catch {
+   116→      /* ignore malformed draft */
+   117→    }
+   118→    return INITIAL;
+   119→  });
+   120→  const [step, setStep] = useState(1);
+   121→  const [industries, setIndustries] = useState<Industry[]>([]);
+   122→  const [submitting, setSubmitting] = useState(false);
+   123→  const [touched, setTouched] = useState(false);
+   124→
+   125→  // Load industries
+   126→  useEffect(() => {
+   127→    let cancelled = false;
+   128→    api<{ industries: Industry[] }>("/api/industries")
+   129→      .then((d) => {
+   130→        if (cancelled) return;
+   131→        setIndustries(d.industries ?? []);
+   132→      })
+   133→      .catch(() => {
+   134→        /* silent — Select just stays empty */
+   135→      });
+   136→    return () => {
+   137→      cancelled = true;
+   138→    };
+   139→  }, []);
+   140→
+   141→  // Persist draft
+   142→  useEffect(() => {
+   143→    try {
+   144→      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+   145→    } catch {
+   146→      /* quota / private mode */
+   147→    }
+   148→  }, [form]);
+   149→
+   150→  const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+   151→    setForm((prev) => ({ ...prev, [key]: value }));
+   152→  };
+   153→
+   154→  // Per-step validation
+   155→  const stepErrors = useMemo<Partial<Record<keyof FormState, string>>>(() => {
+   156→    const errs: Partial<Record<keyof FormState, string>> = {};
+   157→    if (step === 1) {
+   158→      if (!form.name.trim()) errs.name = "Business name is required.";
+   159→      if (!form.province) errs.province = "Province is required.";
+   160→      if (!form.city.trim()) errs.city = "City is required.";
+   161→    }
+   162→    if (step === 3) {
+   163→      if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+   164→        errs.email = "Enter a valid email address.";
+   165→      }
+   166→      if (form.website && !/^https?:\/\/.+\..+/.test(form.website)) {
+   167→        errs.website = "Website must start with http:// or https://";
+   168→      }
+   169→    }
+   170→    return errs;
+   171→  }, [step, form]);
+   172→
+   173→  const stepValid = Object.keys(stepErrors).length === 0;
+   174→  const showError = (key: keyof FormState) => (touched ? stepErrors[key] : undefined);
+   175→
+   176→  const goNext = () => {
+   177→    setTouched(true);
+   178→    if (!stepValid) return;
+   179→    setTouched(false);
+   180→    setStep((s) => Math.min(4, s + 1));
+   181→  };
+   182→
+   183→  const goBack = () => {
+   184→    setTouched(false);
+   185→    setStep((s) => Math.max(1, s - 1));
+   186→  };
+   187→
+   188→  const handleCancel = () => {
+   189→    if (window.confirm("Discard this draft? Your progress will be lost.")) {
+   190→      try {
+   191→        window.sessionStorage.removeItem(DRAFT_KEY);
+   192→      } catch {
+   193→        /* ignore */
+   194→      }
+   195→      navigate({ name: "dashboard-businesses" });
+   196→    }
+   197→  };
+   198→
+   199→  const handleSubmit = async () => {
+   200→    setTouched(true);
+   201→    if (!stepValid) return;
+   202→    setSubmitting(true);
+   203→    try {
+   204→      const payload = {
+   205→        name: form.name.trim(),
+   206→        tagline: form.tagline.trim() || undefined,
+   207→        description: form.description.trim() || undefined,
+   208→        industryId: form.industryId || undefined,
+   209→        province: form.province,
+   210→        city: form.city.trim(),
+   211→        address: form.address.trim() || undefined,
+   212→        website: form.website.trim() || undefined,
+   213→        email: form.email.trim() || undefined,
+   214→        phone: form.phone.trim() || undefined,
+   215→        whatsapp: form.whatsapp.trim() || undefined,
+   216→        businessSize: form.businessSize || undefined,
+   217→        yearFounded: form.yearFounded ? Number(form.yearFounded) : undefined,
+   218→        employeeCount: form.employeeCount || undefined,
+   219→        annualRevenue: form.annualRevenue || undefined,
+   220→        cipcNumber: form.cipcNumber.trim() || undefined,
+   221→        bbbeeLevel: form.bbbeeLevel || undefined,
+   222→        services: form.services,
+   223→        products: form.products,
+   224→      };
+   225→      const res = await api<{ business: { id: string } }>("/api/businesses", {
+   226→        method: "POST",
+   227→        json: payload,
+   228→      });
+   229→      try {
+   230→        window.sessionStorage.removeItem(DRAFT_KEY);
+   231→      } catch {
+   232→        /* ignore */
+   233→      }
+   234→      toast({
+   235→        title: "Business created",
+   236→        description: "Your profile is live on BlakNet. Time to complete verification.",
+   237→      });
+   238→      navigate({ name: "dashboard-business", id: res.business.id });
+   239→    } catch (err) {
+   240→      const message = err instanceof Error ? err.message : "Could not create business.";
+   241→      toast({
+   242→        title: "Couldn't create business",
+   243→        description: message,
+   244→        variant: "destructive",
+   245→      });
+   246→    } finally {
+   247→      setSubmitting(false);
+   248→    }
+   249→  };
+   250→
+   251→  return (
+   252→    <div className="mx-auto w-full max-w-3xl space-y-6">
+   253→      {/* Header */}
+   254→      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+   255→        <div className="max-w-xl">
+   256→          <div className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-sage">
+   257→            <Sparkles className="h-3.5 w-3.5" /> New Business
+   258→          </div>
+   259→          <h1 className="font-display text-3xl tracking-tight text-ink sm:text-4xl">
+   260→            Add a business to BlakNet.
+   261→          </h1>
+   262→          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+   263→            Build your procurement-ready profile in four short steps. You can edit anything later.
+   264→          </p>
+   265→        </div>
+   266→        <Button variant="ghost" size="sm" onClick={handleCancel} className="text-muted-foreground">
+   267→          Cancel
+   268→        </Button>
+   269→      </div>
+   270→
+   271→      {/* Stepper */}
+   272→      <Stepper currentStep={step} onStepClick={(s) => setStep(s)} />
+   273→
+   274→      {/* Form card */}
+   275→      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+   276→        {step === 1 && (
+   277→          <div className="space-y-5">
+   278→            <StepHeader
+   279→              icon={Building2}
+   280→              title="The basics"
+   281→              description="Start with the essentials. You can refine everything later."
+   282→            />
+   283→            <Separator />
+   284→
+   285→            <div className="space-y-1.5">
+   286→              <Label htmlFor="name">
+   287→                Business name <span className="text-destructive">*</span>
+   288→              </Label>
+   289→              <Input
+   290→                id="name"
+   291→                value={form.name}
+   292→                onChange={(e) => update("name", e.target.value)}
+   293→                placeholder="e.g. Langa & Sons Construction"
+   294→                aria-invalid={!!showError("name")}
+   295→              />
+   296→              {showError("name") && <FieldError message={showError("name")!} />}
+   297→            </div>
+   298→
+   299→            <div className="space-y-1.5">
+   300→              <Label htmlFor="tagline">Tagline</Label>
+   301→              <Input
+   302→                id="tagline"
+   303→                value={form.tagline}
+   304→                onChange={(e) => update("tagline", e.target.value)}
+   305→                placeholder="A one-line pitch that sets you apart"
+   306→              />
+   307→            </div>
+   308→
+   309→            <div className="grid gap-5 sm:grid-cols-2">
+   310→              <div className="space-y-1.5">
+   311→                <Label>Industry</Label>
+   312→                <Select
+   313→                  value={form.industryId}
+   314→                  onValueChange={(v) => update("industryId", v)}
+   315→                >
+   316→                  <SelectTrigger className="w-full">
+   317→                    <SelectValue placeholder="Select an industry" />
+   318→                  </SelectTrigger>
+   319→                  <SelectContent>
+   320→                    {industries.map((i) => (
+   321→                      <SelectItem key={i.id} value={i.id}>
+   322→                        {i.name}
+   323→                      </SelectItem>
+   324→                    ))}
+   325→                  </SelectContent>
+   326→                </Select>
+   327→              </div>
+   328→
+   329→              <div className="space-y-1.5">
+   330→                <Label>
+   331→                  Province <span className="text-destructive">*</span>
+   332→                </Label>
+   333→                <Select
+   334→                  value={form.province}
+   335→                  onValueChange={(v) => update("province", v)}
+   336→                >
+   337→                  <SelectTrigger className="w-full" aria-invalid={!!showError("province")}>
+   338→                    <SelectValue placeholder="Select a province" />
+   339→                  </SelectTrigger>
+   340→                  <SelectContent>
+   341→                    {PROVINCES.map((p) => (
+   342→                      <SelectItem key={p} value={p}>
+   343→                        {p}
+   344→                      </SelectItem>
+   345→                    ))}
+   346→                  </SelectContent>
+   347→                </Select>
+   348→                {showError("province") && <FieldError message={showError("province")!} />}
+   349→              </div>
+   350→            </div>
+   351→
+   352→            <div className="space-y-1.5">
+   353→              <Label htmlFor="city">
+   354→                City <span className="text-destructive">*</span>
+   355→              </Label>
+   356→              <Input
+   357→                id="city"
+   358→                value={form.city}
+   359→                onChange={(e) => update("city", e.target.value)}
+   360→                placeholder="e.g. Johannesburg"
+   361→                aria-invalid={!!showError("city")}
+   362→              />
+   363→              {showError("city") && <FieldError message={showError("city")!} />}
+   364→            </div>
+   365→          </div>
+   366→        )}
+   367→
+   368→        {step === 2 && (
+   369→          <div className="space-y-5">
+   370→            <StepHeader
+   371→              icon={FileText}
+   372→              title="Business details"
+   373→              description="Tell buyers about your size, history and compliance posture."
+   374→            />
+   375→            <Separator />
+   376→
+   377→            <div className="space-y-1.5">
+   378→              <Label htmlFor="description">About / Description</Label>
+   379→              <Textarea
+   380→                id="description"
+   381→                value={form.description}
+   382→                onChange={(e) => update("description", e.target.value)}
+   383→                rows={5}
+   384→                placeholder="Tell customers your story, what you do and what makes you different."
+   385→              />
+   386→              <p className="text-[11px] text-muted-foreground">
+   387→                Tip: a 2–3 paragraph description boosts discovery and verification odds.
+   388→              </p>
+   389→            </div>
+   390→
+   391→            <div className="grid gap-5 sm:grid-cols-2">
+   392→              <div className="space-y-1.5">
+   393→                <Label>Business size</Label>
+   394→                <Select
+   395→                  value={form.businessSize}
+   396→                  onValueChange={(v) => update("businessSize", v)}
+   397→                >
+   398→                  <SelectTrigger className="w-full">
+   399→                    <SelectValue placeholder="Select a size band" />
+   400→                  </SelectTrigger>
+   401→                  <SelectContent>
+   402→                    {BUSINESS_SIZES.map((s) => (
+   403→                      <SelectItem key={s.value} value={s.value}>
+   404→                        {s.label}
+   405→                      </SelectItem>
+   406→                    ))}
+   407→                  </SelectContent>
+   408→                </Select>
+   409→              </div>
+   410→
+   411→              <div className="space-y-1.5">
+   412→                <Label htmlFor="yearFounded">Year founded</Label>
+   413→                <Input
+   414→                  id="yearFounded"
+   415→                  type="number"
+   416→                  inputMode="numeric"
+   417→                  min={1900}
+   418→                  max={new Date().getFullYear()}
+   419→                  value={form.yearFounded}
+   420→                  onChange={(e) => update("yearFounded", e.target.value)}
+   421→                  placeholder="e.g. 2019"
+   422→                />
+   423→              </div>
+   424→
+   425→              <div className="space-y-1.5">
+   426→                <Label>Employees</Label>
+   427→                <Select
+   428→                  value={form.employeeCount}
+   429→                  onValueChange={(v) => update("employeeCount", v)}
+   430→                >
+   431→                  <SelectTrigger className="w-full">
+   432→                    <SelectValue placeholder="Select employee range" />
+   433→                  </SelectTrigger>
+   434→                  <SelectContent>
+   435→                    {EMPLOYEE_RANGES.map((r) => (
+   436→                      <SelectItem key={r} value={r}>
+   437→                        {r}
+   438→                      </SelectItem>
+   439→                    ))}
+   440→                  </SelectContent>
+   441→                </Select>
+   442→              </div>
+   443→
+   444→              <div className="space-y-1.5">
+   445→                <Label>Annual revenue</Label>
+   446→                <Select
+   447→                  value={form.annualRevenue}
+   448→                  onValueChange={(v) => update("annualRevenue", v)}
+   449→                >
+   450→                  <SelectTrigger className="w-full">
+   451→                    <SelectValue placeholder="Select revenue band" />
+   452→                  </SelectTrigger>
+   453→                  <SelectContent>
+   454→                    {REVENUE_RANGES.map((r) => (
+   455→                      <SelectItem key={r} value={r}>
+   456→                        {r}
+   457→                      </SelectItem>
+   458→                    ))}
+   459→                  </SelectContent>
+   460→                </Select>
+   461→              </div>
+   462→
+   463→              <div className="space-y-1.5">
+   464→                <Label htmlFor="cipcNumber">CIPC registration number</Label>
+   465→                <Input
+   466→                  id="cipcNumber"
+   467→                  value={form.cipcNumber}
+   468→                  onChange={(e) => update("cipcNumber", e.target.value)}
+   469→                  placeholder="e.g. 2019/123456/07"
+   470→                />
+   471→              </div>
+   472→
+   473→              <div className="space-y-1.5">
+   474→                <Label>B-BBEE level</Label>
+   475→                <Select
+   476→                  value={form.bbbeeLevel}
+   477→                  onValueChange={(v) => update("bbbeeLevel", v)}
+   478→                >
+   479→                  <SelectTrigger className="w-full">
+   480→                    <SelectValue placeholder="Select a level" />
+   481→                  </SelectTrigger>
+   482→                  <SelectContent>
+   483→                    {BBBEE_LEVELS.map((l) => (
+   484→                      <SelectItem key={l} value={l}>
+   485→                        {l}
+   486→                      </SelectItem>
+   487→                    ))}
+   488→                  </SelectContent>
+   489→                </Select>
+   490→              </div>
+   491→            </div>
+   492→          </div>
+   493→        )}
+   494→
+   495→        {step === 3 && (
+   496→          <div className="space-y-5">
+   497→            <StepHeader
+   498→              icon={Globe}
+   499→              title="Contact details"
+   500→              description="How customers, partners and procurement teams can reach you."
+   501→            />
+   502→            <Separator />
+   503→
+   504→            <div className="grid gap-5 sm:grid-cols-2">
+   505→              <div className="space-y-1.5">
+   506→                <Label htmlFor="website">Website</Label>
+   507→                <Input
+   508→                  id="website"
+   509→                  value={form.website}
+   510→                  onChange={(e) => update("website", e.target.value)}
+   511→                  placeholder="https://yourbusiness.co.za"
+   512→                  inputMode="url"
+   513→                  aria-invalid={!!showError("website")}
+   514→                />
+   515→                {showError("website") && <FieldError message={showError("website")!} />}
+   516→              </div>
+   517→
+   518→              <div className="space-y-1.5">
+   519→                <Label htmlFor="email">Business email</Label>
+   520→                <Input
+   521→                  id="email"
+   522→                  type="email"
+   523→                  value={form.email}
+   524→                  onChange={(e) => update("email", e.target.value)}
+   525→                  placeholder="hello@yourbusiness.co.za"
+   526→                  inputMode="email"
+   527→                  aria-invalid={!!showError("email")}
+   528→                />
+   529→                {showError("email") && <FieldError message={showError("email")!} />}
+   530→              </div>
+   531→
+   532→              <div className="space-y-1.5">
+   533→                <Label htmlFor="phone">Phone</Label>
+   534→                <Input
+   535→                  id="phone"
+   536→                  value={form.phone}
+   537→                  onChange={(e) => update("phone", e.target.value)}
+   538→                  placeholder="+27 11 555 0123"
+   539→                  inputMode="tel"
+   540→                />
+   541→              </div>
+   542→
+   543→              <div className="space-y-1.5">
+   544→                <Label htmlFor="whatsapp">WhatsApp</Label>
+   545→                <Input
+   546→                  id="whatsapp"
+   547→                  value={form.whatsapp}
+   548→                  onChange={(e) => update("whatsapp", e.target.value)}
+   549→                  placeholder="+27 82 555 0123"
+   550→                  inputMode="tel"
+   551→                />
+   552→              </div>
+   553→            </div>
+   554→
+   555→            <div className="space-y-1.5">
+   556→              <Label htmlFor="address">Business address</Label>
+   557→              <Textarea
+   558→                id="address"
+   559→                value={form.address}
+   560→                onChange={(e) => update("address", e.target.value)}
+   561→                rows={2}
+   562→                placeholder="Street, suburb, postal code"
+   563→              />
+   564→            </div>
+   565→          </div>
+   566→        )}
+   567→
+   568→        {step === 4 && (
+   569→          <div className="space-y-6">
+   570→            <StepHeader
+   571→              icon={Briefcase}
+   572→              title="Services & products"
+   573→              description="Tag what you offer so you appear in the right searches."
+   574→            />
+   575→            <Separator />
+   576→
+   577→            <TagInput
+   578→              label="Services"
+   579→              icon={Briefcase}
+   580→              placeholder="Add a service, e.g. 'Bricklaying'"
+   581→              values={form.services}
+   582→              onChange={(vals) => update("services", vals)}
+   583→              suggestions={SERVICE_SUGGESTIONS}
+   584→            />
+   585→
+   586→            <TagInput
+   587→              label="Products"
+   588→              icon={Package}
+   589→              placeholder="Add a product, e.g. 'Custom furniture'"
+   590→              values={form.products}
+   591→              onChange={(vals) => update("products", vals)}
+   592→              suggestions={PRODUCT_SUGGESTIONS}
+   593→            />
+   594→          </div>
+   595→        )}
+   596→      </div>
+   597→
+   598→      {/* Navigation */}
+   599→      <div className="flex items-center justify-between">
+   600→        <Button
+   601→          variant="outline"
+   602→          onClick={goBack}
+   603→          disabled={step === 1 || submitting}
+   604→        >
+   605→          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+   606→        </Button>
+   607→        <div className="text-xs text-muted-foreground">Step {step} of 4</div>
+   608→        {step < 4 ? (
+   609→          <Button
+   610→            onClick={goNext}
+   611→            disabled={submitting}
+   612→            className="bg-ink text-cream hover:bg-ink/90"
+   613→          >
+   614→            Continue <ArrowRight className="ml-1.5 h-4 w-4" />
+   615→          </Button>
+   616→        ) : (
+   617→          <Button
+   618→            onClick={handleSubmit}
+   619→            disabled={submitting}
+   620→            className="bg-ink text-cream hover:bg-ink/90"
+   621→          >
+   622→            {submitting ? "Creating…" : "Create business"}
+   623→            {!submitting && <Check className="ml-1.5 h-4 w-4" />}
+   624→          </Button>
+   625→        )}
+   626→      </div>
+   627→
+   628→      {/* Trust strip */}
+   629→      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-xl border border-border bg-cream-grain px-5 py-4 text-[11px] text-foreground/70">
+   630→        <span className="inline-flex items-center gap-1.5">
+   631→          <ShieldCheck className="h-3.5 w-3.5 text-sage" /> Verification unlocks the badge
+   632→        </span>
+   633→        <span className="inline-flex items-center gap-1.5">
+   634→          <Globe className="h-3.5 w-3.5 text-sage" /> Public profile goes live instantly
+   635→        </span>
+   636→        <span className="inline-flex items-center gap-1.5">
+   637→          <Users className="h-3.5 w-3.5 text-sage" /> Join 2 400+ Black-owned businesses
+   638→        </span>
+   639→        <span className="inline-flex items-center gap-1.5">
+   640→          <Calendar className="h-3.5 w-3.5 text-sage" /> Draft auto-saves as you type
+   641→        </span>
+   642→        <span className="inline-flex items-center gap-1.5">
+   643→          <CreditCard className="h-3.5 w-3.5 text-sage" /> Free forever plan, no card needed
+   644→        </span>
+   645→      </div>
+   646→    </div>
+   647→  );
+   648→}
+   649→
+   650→// ---------- sub-components ----------
+   651→
+   652→function Stepper({
+   653→  currentStep,
+   654→  onStepClick,
+   655→}: {
+   656→  currentStep: number;
+   657→  onStepClick: (step: number) => void;
+   658→}) {
+   659→  return (
+   660→    <ol className="flex items-center gap-2 sm:gap-3">
+   661→      {STEPS.map((s, i) => {
+   662→        const completed = currentStep > s.id;
+   663→        const active = currentStep === s.id;
+   664→        const clickable = completed;
+   665→        return (
+   666→          <li key={s.id} className="flex flex-1 items-center gap-2 sm:gap-3">
+   667→            <button
+   668→              type="button"
+   669→              disabled={!clickable}
+   670→              onClick={() => clickable && onStepClick(s.id)}
+   671→              className={cn(
+   672→                "flex min-w-0 flex-1 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors",
+   673→                active && "border-ink bg-ink text-cream",
+   674→                completed && !active && "border-sage/30 bg-sage/15 text-sage hover:bg-sage/25",
+   675→                !active && !completed && "border-border bg-card text-muted-foreground",
+   676→                !clickable && "cursor-default",
+   677→              )}
+   678→            >
+   679→              <span
+   680→                className={cn(
+   681→                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+   682→                  active && "bg-cream text-ink",
+   683→                  completed && !active && "bg-sage text-ink",
+   684→                  !active && !completed && "bg-muted text-muted-foreground",
+   685→                )}
+   686→              >
+   687→                {completed ? <Check className="h-3.5 w-3.5" /> : s.id}
+   688→              </span>
+   689→              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+   690→                {s.label}
+   691→              </span>
+   692→            </button>
+   693→            {i < STEPS.length - 1 && (
+   694→              <div
+   695→                className={cn(
+   696→                  "hidden h-px w-4 shrink-0 sm:block",
+   697→                  completed ? "bg-sage/40" : "bg-border",
+   698→                )}
+   699→              />
+   700→            )}
+   701→          </li>
+   702→        );
+   703→      })}
+   704→    </ol>
+   705→  );
+   706→}
+   707→
+   708→function StepHeader({
+   709→  icon: Icon,
+   710→  title,
+   711→  description,
+   712→}: {
+   713→  icon: React.ComponentType<{ className?: string }>;
+   714→  title: string;
+   715→  description: string;
+   716→}) {
+   717→  return (
+   718→    <div className="flex items-start gap-3">
+   719→      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink text-cream">
+   720→        <Icon className="h-4 w-4" />
+   721→      </div>
+   722→      <div>
+   723→        <h2 className="font-display text-xl tracking-tight text-ink">{title}</h2>
+   724→        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+   725→      </div>
+   726→    </div>
+   727→  );
+   728→}
+   729→
+   730→function FieldError({ message }: { message: string }) {
+   731→  return (
+   732→    <p className="mt-1 inline-flex items-center gap-1 text-xs text-destructive">
+   733→      <AlertCircle className="h-3 w-3" /> {message}
+   734→    </p>
+   735→  );
+   736→}
+   737→
+   738→function TagInput({
+   739→  label,
+   740→  icon: Icon,
+   741→  placeholder,
+   742→  values,
+   743→  onChange,
+   744→  suggestions,
+   745→}: {
+   746→  label: string;
+   747→  icon: React.ComponentType<{ className?: string }>;
+   748→  placeholder: string;
+   749→  values: string[];
+   750→  onChange: (vals: string[]) => void;
+   751→  suggestions: string[];
+   752→}) {
+   753→  const [input, setInput] = useState("");
+   754→
+   755→  const add = (raw: string) => {
+   756→    const v = raw.trim();
+   757→    if (!v) return;
+   758→    if (values.some((x) => x.toLowerCase() === v.toLowerCase())) {
+   759→      setInput("");
+   760→      return;
+   761→    }
+   762→    onChange([...values, v]);
+   763→    setInput("");
+   764→  };
+   765→
+   766→  const remove = (idx: number) => {
+   767→    onChange(values.filter((_, i) => i !== idx));
+   768→  };
+   769→
+   770→  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+   771→    if (e.key === "Enter" || e.key === ",") {
+   772→      e.preventDefault();
+   773→      add(input);
+   774→    } else if (e.key === "Backspace" && !input && values.length) {
+   775→      remove(values.length - 1);
+   776→    }
+   777→  };
+   778→
+   779→  const remainingSuggestions = suggestions.filter(
+   780→    (s) => !values.some((v) => v.toLowerCase() === s.toLowerCase()),
+   781→  );
+   782→
+   783→  return (
+   784→    <div className="space-y-2">
+   785→      <Label className="inline-flex items-center gap-1.5">
+   786→        <Icon className="h-3.5 w-3.5 text-muted-foreground" /> {label}
+   787→      </Label>
+   788→
+   789→      <div className="flex gap-2">
+   790→        <Input
+   791→          value={input}
+   792→          onChange={(e) => setInput(e.target.value)}
+   793→          onKeyDown={handleKeyDown}
+   794→          placeholder={placeholder}
+   795→        />
+   796→        <Button
+   797→          type="button"
+   798→          variant="outline"
+   799→          onClick={() => add(input)}
+   800→          disabled={!input.trim()}
+   801→        >
+   802→          <Plus className="mr-1 h-3.5 w-3.5" /> Add
+   803→        </Button>
+   804→      </div>
+   805→
+   806→      {values.length > 0 && (
+   807→        <div className="flex flex-wrap gap-1.5">
+   808→          {values.map((v, i) => (
+   809→            <span
+   810→              key={`${v}-${i}`}
+   811→              className="inline-flex items-center gap-1 rounded-full border border-ink/15 bg-ink/5 py-1 pl-3 pr-1.5 text-xs font-medium text-ink"
+   812→            >
+   813→              {v}
+   814→              <button
+   815→                type="button"
+   816→                onClick={() => remove(i)}
+   817→                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10 hover:text-foreground"
+   818→                aria-label={`Remove ${v}`}
+   819→              >
+   820→                <X className="h-3 w-3" />
+   821→              </button>
+   822→            </span>
+   823→          ))}
+   824→        </div>
+   825→      )}
+   826→
+   827→      {remainingSuggestions.length > 0 && (
+   828→        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+   829→          <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+   830→            <Sparkles className="h-3 w-3 text-sage" /> Suggested
+   831→          </span>
+   832→          {remainingSuggestions.map((s) => (
+   833→            <button
+   834→              key={s}
+   835→              type="button"
+   836→              onClick={() => add(s)}
+   837→              className="inline-flex items-center gap-1 rounded-full border border-sage/30 bg-sage/10 px-2.5 py-1 text-[11px] font-medium text-sage hover:bg-sage/20"
+   838→            >
+   839→              <Plus className="h-2.5 w-2.5" /> {s}
+   840→            </button>
+   841→          ))}
+   842→        </div>
+   843→      )}
+   844→    </div>
+   845→  );
+   846→}
+   847→

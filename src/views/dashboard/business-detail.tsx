@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useApp } from "@/lib/store";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -18,9 +18,30 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import {
+  PROVINCES,
+  BUSINESS_SIZES,
+  EMPLOYEE_RANGES,
+  REVENUE_RANGES,
+  BBBEE_LEVELS,
+} from "@/lib/constants";
 import { EmptyState } from "@/components/blaknet/section";
 import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
-import type { Business, VerificationStatus } from "@/lib/types";
+import type { Business, Industry, VerificationStatus } from "@/lib/types";
 import { formatDate, formatNumber, provinceCity, verificationLabel } from "@/lib/format";
 import {
   ArrowLeft,
@@ -42,6 +63,9 @@ import {
   Briefcase,
   Package,
   X,
+  Plus,
+  Save,
+  Loader2,
 } from "lucide-react";
 
 const VERIFICATION_TYPES = [
@@ -50,6 +74,106 @@ const VERIFICATION_TYPES = [
   { value: "TAX", label: "Tax clearance" },
   { value: "CERTIFICATION", label: "Industry certification" },
 ];
+
+const SERVICE_SUGGESTIONS = ["Accounting", "Consulting", "Design", "Logistics"];
+const PRODUCT_SUGGESTIONS = ["Report", "Template", "Kit", "Subscription"];
+
+// ---------- edit form ----------
+interface EditFormState {
+  name: string;
+  tagline: string;
+  description: string;
+  industryId: string;
+  province: string;
+  city: string;
+  address: string;
+  website: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  businessSize: string;
+  yearFounded: string;
+  employeeCount: string;
+  annualRevenue: string;
+  cipcNumber: string;
+  bbbeeLevel: string;
+  services: string[];
+  products: string[];
+}
+
+function editFormFromBusiness(b: Business): EditFormState {
+  return {
+    name: b.name ?? "",
+    tagline: b.tagline ?? "",
+    description: b.description ?? "",
+    industryId: b.industryId ?? "",
+    province: b.province ?? "",
+    city: b.city ?? "",
+    address: b.address ?? "",
+    website: b.website ?? "",
+    email: b.email ?? "",
+    phone: b.phone ?? "",
+    whatsapp: b.whatsapp ?? "",
+    businessSize: b.businessSize ?? "",
+    yearFounded: b.yearFounded != null ? String(b.yearFounded) : "",
+    employeeCount: b.employeeCount ?? "",
+    annualRevenue: b.annualRevenue ?? "",
+    cipcNumber: b.cipcNumber ?? "",
+    bbbeeLevel: b.bbbeeLevel ?? "",
+    services: (b.services ?? []).map((s) => s.name),
+    products: (b.products ?? []).map((p) => p.name),
+  };
+}
+
+function buildEditPayload(form: EditFormState) {
+  return {
+    name: form.name.trim(),
+    tagline: form.tagline.trim() || undefined,
+    description: form.description.trim() || undefined,
+    industryId: form.industryId || undefined,
+    province: form.province || undefined,
+    city: form.city.trim() || undefined,
+    address: form.address.trim() || undefined,
+    website: form.website.trim() || undefined,
+    email: form.email.trim() || undefined,
+    phone: form.phone.trim() || undefined,
+    whatsapp: form.whatsapp.trim() || undefined,
+    businessSize: form.businessSize || undefined,
+    yearFounded: form.yearFounded ? Number(form.yearFounded) : undefined,
+    employeeCount: form.employeeCount || undefined,
+    annualRevenue: form.annualRevenue || undefined,
+    cipcNumber: form.cipcNumber.trim() || undefined,
+    bbbeeLevel: form.bbbeeLevel || undefined,
+    services: form.services,
+    products: form.products,
+  };
+}
+
+// Best-effort local merge of edited fields back onto the business object
+// (used only if the PATCH response doesn't include a fresh business payload).
+function editBusinessMerge(form: EditFormState): Partial<Business> {
+  return {
+    name: form.name.trim(),
+    tagline: form.tagline.trim() || null,
+    description: form.description.trim() || null,
+    industryId: form.industryId || null,
+    province: form.province || null,
+    city: form.city.trim() || null,
+    address: form.address.trim() || null,
+    website: form.website.trim() || null,
+    email: form.email.trim() || null,
+    phone: form.phone.trim() || null,
+    whatsapp: form.whatsapp.trim() || null,
+    businessSize: form.businessSize || null,
+    yearFounded: form.yearFounded ? Number(form.yearFounded) : null,
+    employeeCount: form.employeeCount || null,
+    annualRevenue: form.annualRevenue || null,
+    cipcNumber: form.cipcNumber.trim() || null,
+    bbbeeLevel: form.bbbeeLevel || null,
+    services: form.services.map((name, i) => ({ id: `local-${i}-${name}`, name })),
+    products: form.products.map((name, i) => ({ id: `local-${i}-${name}`, name })),
+  };
+}
 
 export function BusinessDetailView() {
   const route = useApp((s) => s.route);
@@ -68,11 +192,33 @@ function BusinessDetail({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   const [showVerifyForm, setShowVerifyForm] = useState(false);
 
+  // edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<EditFormState | null>(null);
+  const [industries, setIndustries] = useState<Industry[]>([]);
+  const [saving, setSaving] = useState(false);
+
   // verification form state
   const [verificationType, setVerificationType] = useState("CIPC");
   const [documentUrl, setDocumentUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Load industries (for the edit dialog's industry Select).
+  useEffect(() => {
+    let cancelled = false;
+    api<{ industries: Industry[] }>("/api/industries")
+      .then((d) => {
+        if (cancelled) return;
+        setIndustries(d.industries ?? []);
+      })
+      .catch(() => {
+        /* silent — Select just stays empty */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,11 +252,40 @@ function BusinessDetail({ id }: { id: string }) {
       });
   };
 
-  const handleEditClick = () => {
-    toast({
-      title: "Editing is coming soon",
-      description: "We're polishing inline editing. Reach out to support@blaknet.co.za if you need a change now.",
-    });
+  const openEdit = () => {
+    if (!business) return;
+    setEditForm(editFormFromBusiness(business));
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!business || !editForm) return;
+    if (!editForm.name.trim()) {
+      toast({ title: "Business name is required.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = buildEditPayload(editForm);
+      const res = await api<{ business: Business }>(
+        `/api/businesses/${encodeURIComponent(business.id)}/edit`,
+        { method: "PATCH", json: payload },
+      );
+      setBusiness(res.business ?? { ...business, ...editBusinessMerge(editForm) });
+      setEditOpen(false);
+      setEditForm(null);
+      toast({ title: "Business updated", description: "Your changes are live." });
+      refetch();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not save changes.";
+      toast({
+        title: "Couldn't save changes",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleVerifySubmit = async (e: FormEvent) => {
@@ -260,7 +435,7 @@ function BusinessDetail({ id }: { id: string }) {
           >
             View public profile <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={handleEditClick}>
+          <Button variant="outline" onClick={openEdit}>
             <Pencil className="mr-1.5 h-4 w-4" /> Edit details
           </Button>
           {!isVerified && !isPending && (
@@ -396,7 +571,7 @@ function BusinessDetail({ id }: { id: string }) {
               </div>
 
               <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <AlertCircle className="h-3 w-3" /> Editing services & products is coming soon.
+                <Pencil className="h-3 w-3" /> Use "Edit details" above to update services & products.
               </p>
             </div>
           </div>
@@ -453,6 +628,25 @@ function BusinessDetail({ id }: { id: string }) {
           <ContactCard business={business} />
         </div>
       </div>
+
+      {editForm && (
+        <EditBusinessDialog
+          open={editOpen}
+          onOpenChange={(o) => {
+            setEditOpen(o);
+            if (!o && !saving) setEditForm(null);
+          }}
+          form={editForm}
+          setForm={setEditForm}
+          industries={industries}
+          saving={saving}
+          onCancel={() => {
+            setEditOpen(false);
+            if (!saving) setEditForm(null);
+          }}
+          onSave={handleEditSave}
+        />
+      )}
     </div>
   );
 }
@@ -584,7 +778,7 @@ function ContactCard({ business }: { business: Business }) {
       <h2 className="font-display text-lg tracking-tight">Contact</h2>
       {visible.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          No contact details yet. Add them from the new business flow soon — editing is coming.
+          No contact details yet. Use “Edit details” above to add them.
         </p>
       ) : (
         <ul className="mt-3 space-y-3 text-sm">
@@ -611,6 +805,447 @@ function ContactCard({ business }: { business: Business }) {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------- edit dialog ----------
+
+function EditBusinessDialog({
+  open,
+  onOpenChange,
+  form,
+  setForm,
+  industries,
+  saving,
+  onCancel,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  form: EditFormState;
+  setForm: React.Dispatch<React.SetStateAction<EditFormState | null>>;
+  industries: Industry[];
+  saving: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const update = <K extends keyof EditFormState>(key: K, value: EditFormState[K]) => {
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit business</DialogTitle>
+          <DialogDescription>
+            Update your business profile. Changes go live immediately after saving.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="w-full">
+            <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+            <TabsTrigger value="services" className="flex-1">Services &amp; Products</TabsTrigger>
+          </TabsList>
+
+          {/* ---------- Details tab ---------- */}
+          <TabsContent value="details" className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">
+                Business name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-name"
+                value={form.name}
+                onChange={(e) => update("name", e.target.value)}
+                placeholder="e.g. Langa & Sons Construction"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-tagline">Tagline</Label>
+              <Input
+                id="edit-tagline"
+                value={form.tagline}
+                onChange={(e) => update("tagline", e.target.value)}
+                placeholder="A one-line pitch that sets you apart"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-description">About / Description</Label>
+              <Textarea
+                id="edit-description"
+                value={form.description}
+                onChange={(e) => update("description", e.target.value)}
+                rows={4}
+                placeholder="Tell customers your story, what you do and what makes you different."
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Industry</Label>
+                <Select
+                  value={form.industryId}
+                  onValueChange={(v) => update("industryId", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an industry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industries.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>
+                        {i.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Province</Label>
+                <Select
+                  value={form.province}
+                  onValueChange={(v) => update("province", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVINCES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-city">City</Label>
+                <Input
+                  id="edit-city"
+                  value={form.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  placeholder="e.g. Johannesburg"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-address">Address</Label>
+                <Input
+                  id="edit-address"
+                  value={form.address}
+                  onChange={(e) => update("address", e.target.value)}
+                  placeholder="Street, suburb, postal code"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-website">Website</Label>
+                <Input
+                  id="edit-website"
+                  value={form.website}
+                  onChange={(e) => update("website", e.target.value)}
+                  placeholder="https://yourbusiness.co.za"
+                  inputMode="url"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-email">Business email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  placeholder="hello@yourbusiness.co.za"
+                  inputMode="email"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={form.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="+27 11 555 0123"
+                  inputMode="tel"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+                <Input
+                  id="edit-whatsapp"
+                  value={form.whatsapp}
+                  onChange={(e) => update("whatsapp", e.target.value)}
+                  placeholder="+27 82 555 0123"
+                  inputMode="tel"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Business size</Label>
+                <Select
+                  value={form.businessSize}
+                  onValueChange={(v) => update("businessSize", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a size band" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUSINESS_SIZES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-yearFounded">Year founded</Label>
+                <Input
+                  id="edit-yearFounded"
+                  type="number"
+                  inputMode="numeric"
+                  min={1900}
+                  max={new Date().getFullYear()}
+                  value={form.yearFounded}
+                  onChange={(e) => update("yearFounded", e.target.value)}
+                  placeholder="e.g. 2019"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Employees</Label>
+                <Select
+                  value={form.employeeCount}
+                  onValueChange={(v) => update("employeeCount", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select employee range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EMPLOYEE_RANGES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Annual revenue</Label>
+                <Select
+                  value={form.annualRevenue}
+                  onValueChange={(v) => update("annualRevenue", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select revenue band" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REVENUE_RANGES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-cipc">CIPC registration number</Label>
+                <Input
+                  id="edit-cipc"
+                  value={form.cipcNumber}
+                  onChange={(e) => update("cipcNumber", e.target.value)}
+                  placeholder="e.g. 2019/123456/07"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>B-BBEE level</Label>
+                <Select
+                  value={form.bbbeeLevel}
+                  onValueChange={(v) => update("bbbeeLevel", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BBBEE_LEVELS.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ---------- Services & Products tab ---------- */}
+          <TabsContent value="services" className="space-y-6 pt-2">
+            <EditTagInput
+              label="Services"
+              icon={Briefcase}
+              placeholder="Add a service, e.g. 'Bricklaying'"
+              values={form.services}
+              onChange={(vals) => update("services", vals)}
+              suggestions={SERVICE_SUGGESTIONS}
+            />
+
+            <Separator />
+
+            <EditTagInput
+              label="Products"
+              icon={Package}
+              placeholder="Add a product, e.g. 'Custom furniture'"
+              values={form.products}
+              onChange={(vals) => update("products", vals)}
+              suggestions={PRODUCT_SUGGESTIONS}
+            />
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onSave}
+            disabled={saving || !form.name.trim()}
+            className="bg-ink text-cream hover:bg-ink/90"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Saving…
+              </>
+            ) : (
+              <>
+                <Save className="mr-1.5 h-4 w-4" /> Save changes
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditTagInput({
+  label,
+  icon: Icon,
+  placeholder,
+  values,
+  onChange,
+  suggestions,
+}: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  placeholder: string;
+  values: string[];
+  onChange: (vals: string[]) => void;
+  suggestions: string[];
+}) {
+  const [input, setInput] = useState("");
+
+  const add = (raw: string) => {
+    const v = raw.trim();
+    if (!v) return;
+    if (values.some((x) => x.toLowerCase() === v.toLowerCase())) {
+      setInput("");
+      return;
+    }
+    onChange([...values, v]);
+    setInput("");
+  };
+
+  const remove = (idx: number) => {
+    onChange(values.filter((_, i) => i !== idx));
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      add(input);
+    } else if (e.key === "Backspace" && !input && values.length) {
+      remove(values.length - 1);
+    }
+  };
+
+  const remainingSuggestions = suggestions.filter(
+    (s) => !values.some((v) => v.toLowerCase() === s.toLowerCase()),
+  );
+
+  return (
+    <div className="space-y-2">
+      <Label className="inline-flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" /> {label}
+      </Label>
+
+      <div className="flex gap-2">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => add(input)}
+          disabled={!input.trim()}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> Add
+        </Button>
+      </div>
+
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {values.map((v, i) => (
+            <span
+              key={`${v}-${i}`}
+              className="inline-flex items-center gap-1 rounded-full border border-ink/15 bg-ink/5 py-1 pl-3 pr-1.5 text-xs font-medium text-ink"
+            >
+              {v}
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10 hover:text-foreground"
+                aria-label={`Remove ${v}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {remainingSuggestions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-sage" /> Suggested
+          </span>
+          {remainingSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => add(s)}
+              className="inline-flex items-center gap-1 rounded-full border border-sage/30 bg-sage/10 px-2.5 py-1 text-[11px] font-medium text-sage hover:bg-sage/20"
+            >
+              <Plus className="h-2.5 w-2.5" /> {s}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**Rating: 9/10**\n\nThe refined layout is significantly more polished. The card container for the sidebar provides necessary structure, and moving the sort control to the results bar improves the information hierarchy. The staggered animations add a premium feel to the interaction.\n\n**Remaining Polish Items:**\n\n1.  **Mobile Responsiveness:** Ensure the sidebar collapses into a bottom-sheet or off-canvas drawer on screens <768px, as the current two-column layout will likely break or crowd the cards.\n2.  **Empty State & Loading Skeletons:** Implement a skeleton loader for the grid during data fetching and a styled \"No results found\" state when filters return zero matches.\n3.  **Active Filter \"Chips\":** Enhance the active filter tinting by adding a removable \"chip\" (e.g., \"Industry: Construction x\") at the top of the results list so users can see exactly what is filtering the view without looking at the sidebar.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1787012897,
+  "id": "202608180828131ec5946a6ee0410c",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202608180828131ec5946a6ee0410c",
+  "usage": {
+    "completion_tokens": 195,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 4639,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 4834
+  }
+}

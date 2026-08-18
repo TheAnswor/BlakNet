@@ -151,30 +151,32 @@ function ComposerCard({
   return (
     <section
       id="composer"
-      className="border border-border bg-card rounded-xl p-5 scroll-mt-24"
+      className="card-soft border border-border bg-card rounded-xl p-5 scroll-mt-24"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <Avatar user={authUser} />
         <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Share an update, an opportunity, or an announcement for the community…"
-          className="min-h-[88px] resize-none border-0 bg-transparent px-0 focus-visible:ring-0"
+          className="min-h-[72px] resize-none border-0 bg-transparent px-0 pt-1.5 focus-visible:ring-0 text-[15px]"
         />
       </div>
 
       {showTitle && (
-        <div className="mt-3">
+        <div className="mt-3 pl-12">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={postType === "announcement" ? "Announcement headline" : "Opportunity title"}
+            className="bg-background"
           />
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Type:</span>
           {(["text", "announcement", "opportunity"] as const).map((t) => {
             const meta = POST_TYPE_META[t];
             const Icon = meta.icon;
@@ -185,10 +187,10 @@ function ComposerCard({
                 type="button"
                 onClick={() => setPostType(t)}
                 className={
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors " +
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all " +
                   (active
-                    ? "border-ink bg-ink text-cream"
-                    : "border-border bg-background text-foreground/70 hover:bg-muted")
+                    ? "border-ink bg-ink text-cream shadow-sm"
+                    : "border-border bg-background text-foreground/65 hover:border-foreground/30 hover:bg-muted hover:text-foreground")
                 }
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -197,7 +199,11 @@ function ComposerCard({
             );
           })}
         </div>
-        <Button onClick={submit} disabled={submitting || !content.trim()} className="bg-ink text-cream hover:bg-ink/90">
+        <Button
+          onClick={submit}
+          disabled={submitting || !content.trim()}
+          className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90 disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
+        >
           {submitting ? "Posting…" : "Post"}
         </Button>
       </div>
