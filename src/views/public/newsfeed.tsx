@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pill } from "@/components/blaknet/badges";
-import { SectionHeading, EmptyState } from "@/components/blaknet/section";
+import { EmptyState } from "@/components/blaknet/section";
 import type { AuthUser, Comment, Post } from "@/lib/types";
 import { initials, timeAgo, formatNumber } from "@/lib/format";
 import {
@@ -579,17 +579,6 @@ export function NewsfeedView() {
 
   return (
     <div className="flex flex-col">
-      {/* HEADER */}
-      <section className="bg-cream-grain">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
-          <SectionHeading
-            eyebrow="The Hustle Feed"
-            title="Where Black businesses connect."
-            description="Posts, opportunities and announcements from the BlakNet community."
-          />
-        </div>
-      </section>
-
       {/* BODY */}
       <section className="bg-background">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">

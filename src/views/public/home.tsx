@@ -74,20 +74,13 @@ export function HomeView() {
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cream/15 bg-cream/5 px-3 py-1 text-[12px] text-cream/80 backdrop-blur">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sage opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sage" />
-              </span>
-              The Black Business Ecosystem · South Africa
-            </div>
+          <div className="max-w-3xl">
             <h1 className="font-display text-4xl leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-[4.4rem]">
               Built for Black Business.
               <br />
               <span className="text-sage">Built for Opportunity.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-balance text-base leading-relaxed text-cream/55 sm:text-lg">
+            <p className="mt-6 max-w-2xl text-balance text-base leading-relaxed text-cream/55 sm:text-lg">
               BlakNet is the platform helping Black-owned businesses get discovered, connected and opportunity-ready.
               Build your profile. Discover and host events. Connect with entrepreneurs. Access practical resources.
             </p>
@@ -99,7 +92,7 @@ export function HomeView() {
                 if (q.trim()) sessionStorage.setItem("blaknet:directory-search", q.trim());
                 navigate({ name: "directory" });
               }}
-              className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-full border border-cream/15 bg-cream/5 p-1.5 backdrop-blur"
+              className="mt-8 flex max-w-xl items-center gap-2 rounded-full border border-cream/15 bg-cream/5 p-1.5 backdrop-blur"
             >
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cream/40" />
@@ -118,7 +111,7 @@ export function HomeView() {
               </Button>
             </form>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center justify-start gap-3">
               <Button
                 size="lg"
                 onClick={() => navigate({ name: "register" })}
@@ -142,7 +135,7 @@ export function HomeView() {
           </div>
 
           {/* stats strip — glassmorphism */}
-          <div className="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-2xl glass sm:grid-cols-4">
+          <div className="mt-16 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-2xl glass sm:grid-cols-4">
             {STATS.map((s) => (
               <div key={s.label} className="bg-ink/30 px-4 py-6 text-center backdrop-blur">
                 <div className="font-display text-3xl tracking-tight text-cream sm:text-4xl">{s.value}</div>
