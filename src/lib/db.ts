@@ -7,7 +7,7 @@ const globalForPrisma = globalThis as unknown as {
 
 // Force a fresh PrismaClient when the schema changes (dev hot-reload).
 // The generated client exports a version hash we can compare.
-const SCHEMA_VERSION = 'blaknet-v3-enquiries' // bump this when the schema changes
+const SCHEMA_VERSION = 'blaknet-v4-notif-prefs' // bump this when the schema changes
 
 function makeClient() {
   return new PrismaClient({

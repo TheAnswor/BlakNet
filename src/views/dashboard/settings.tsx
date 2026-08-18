@@ -102,6 +102,9 @@ export function SettingsView() {
           linkedin: d.profile?.linkedin ?? "",
         });
         setAvatarUrl(d.user?.profileImage ?? null);
+        setNotifEmail(d.profile?.notifEmail ?? true);
+        setNotifInApp(d.profile?.notifInApp ?? true);
+        setNotifWhatsapp(d.profile?.notifWhatsapp ?? true);
       })
       .catch(() => {
         // fall back to authUser
@@ -235,8 +238,22 @@ export function SettingsView() {
     }
   }
 
-  function saveNotifications() {
-    toast({ title: "Saved", description: "Your notification preferences have been saved." });
+  const [savingNotifs, setSavingNotifs] = useState(false);
+
+  async function saveNotifications() {
+    setSavingNotifs(true);
+    try {
+      await api("/api/profile", {
+        method: "PATCH",
+        json: { notifEmail, notifInApp, notifWhatsapp },
+      });
+      toast({ title: "Saved", description: "Your notification preferences have been saved." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save.";
+      toast({ title: "Could not save", description: msg, variant: "destructive" });
+    } finally {
+      setSavingNotifs(false);
+    }
   }
 
   function confirmDelete() {
@@ -604,8 +621,14 @@ export function SettingsView() {
             </div>
 
             <div className="mt-5 flex justify-end">
-              <Button type="button" onClick={saveNotifications} className="bg-ink text-cream hover:bg-ink/90">
-                Save preferences
+              <Button type="button" onClick={saveNotifications} disabled={savingNotifs} className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90">
+                {savingNotifs ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Saving…
+                  </>
+                ) : (
+                  "Save preferences"
+                )}
               </Button>
             </div>
           </div>

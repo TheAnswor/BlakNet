@@ -55,15 +55,18 @@ model Session {
 }
 
 model Profile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  headline  String?
-  location  String?
-  website   String?
-  linkedin String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline        String?
+  location        String?
+  website         String?
+  linkedin        String?
+  notifEmail      Boolean  @default(true)
+  notifInApp      Boolean  @default(true)
+  notifWhatsapp   Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Industry {

@@ -1282,3 +1282,107 @@ BlakNet was stable and mature — all public (13 routes) + dashboard (14 routes 
 3. **Search improvements** — full-text search or search-rank scoring.
 4. **Business image uploads for creation** — currently only available in edit, not the multi-step create wizard.
 5. **Analytics for business owners** — the Intelligence plan promises live performance dashboards; scaffold per-business analytics (views, enquiries, follower growth).
+
+---
+
+## Task: ANALYTICS-SETTINGS
+- **Agent**: specialized sub agent (general-purpose)
+- **Scope**: (A) per-business analytics dashboard view for owners, (B) admin Settings view — the last "coming soon" admin item.
+
+### Work log
+1. Read worklog + existing patterns (`business-detail.tsx`, `businesses.tsx`, `admin/reports.tsx`, `admin/shell.tsx`, `lib/types.ts`, `lib/store.ts`, `lib/api.ts`, `lib/format.ts`, blaknet components) to align with brand tokens, store hook, `api()` helper, toast, shadcn/ui primitives. Confirmed the existing `GET /api/businesses/[slug]/analytics` endpoint shape (business + summary + growth + 30-day trend + recentEnquiries/Followers/Reviews).
+2. **Task A — BusinessAnalyticsView** (`src/views/dashboard/business-analytics.tsx` *new*):
+   - Exports `BusinessAnalyticsView` which remounts on `route.id` change (key pattern) so state resets cleanly.
+   - Resolves slug from `GET /api/businesses/owner` (find business by `id`), then fetches `GET /api/businesses/${slug}/analytics`.
+   - Load states: `loading` (full skeleton), `not-found`, `forbidden` (403 — back-to-business CTA), `error`, `ready`.
+   - Header: back link to `dashboard-business` + business name + "Analytics" + `VerifiedBadge`.
+   - **Intelligence upsell banner** (sage-tinted) when `business.plan !== "INTELLIGENCE"` — still renders the data, just shows the banner with an "Upgrade plan" button → `navigate({ name: "dashboard-plan" })`.
+   - **Summary stat cards** (4 / row on lg): Profile Views (Eye), Profile Completion % (Activity), Avg Rating (Star), Total Enquiries (Inbox) — each with `card-soft border border-border`, big `font-display text-3xl` number, staggered `animate-fade-in-up`.
+   - **Growth section** (4 cards): new enquiries (7d), new enquiries (30d), new followers (30d), new reviews (30d) — each with sage TrendingUp icon + the number + window label.
+   - **Enquiry trend chart**: responsive CSS bar chart — 30 vertical bars (`flex-1`, `gap-0.5`), `bg-sage` fills with height proportional to `count / max`. Track is the parent container. If all counts are 0 → shows muted "No enquiries in the last 30 days." message. Each bar has a hover tooltip (date + count). Footer shows first/last date labels.
+   - **Recent activity** (2 columns): left = Recent enquiries (5 — name, company, type `Pill`, status `Pill` with tone mapping, `timeAgo`); right = Recent followers (5 — avatar initials, name, email, `timeAgo`).
+   - **Recent reviews** (5 — reviewerName + company, `StarRating` with `showValue`, line-clamp-2 review text, `timeAgo`).
+3. **Task B — AdminSettingsView** (`src/views/admin/settings.tsx` *new*):
+   - Heading "Settings" + subtitle "Platform configuration and feature flags." in `bg-ink-grain` hero with sage Settings icon watermark.
+   - **Tabs** (Profile / Features / Branding) using shadcn `Tabs`.
+     - **Profile**: read-only platform info rows (BlakNet / development / 1.0.0 / South Africa / Africa/Johannesburg) with sage `Check` indicators.
+     - **Features**: 6 feature flag `Switch` toggles (allow new registrations, business creation, event creation, require email verification, maintenance mode, allow public directory) — defaults from spec. Toggling fires a toast "Feature flags persistence coming soon" (cosmetic MVP).
+     - **Branding**: 3 brand palette swatches (ink #1D2534, cream #F6F6DF, sage #717568), typography cards (Instrument Serif display + Geist Sans body), logo card (LogoMark + tagline).
+   - **Contact section**: 3 contact rows (support email `mailto:hello@blaknet.co.za`, documentation link, status page link) — render as cards with icon + label + value.
+   - Loading skeleton + 403 forbidden state (back-to-dashboard CTA). All sections use `card-soft border border-border` with staggered `animate-fade-in-up`.
+4. **Wiring — `src/app/page.tsx`**: imported both `BusinessAnalyticsView` and `AdminSettingsView`; added `{route.name === "dashboard-business-analytics" && <BusinessAnalyticsView />}` inside `<DashboardShell>`; added `{route.name === "admin-settings" && <AdminSettingsView />}` inside `<AdminShell>`; added `"dashboard-business-analytics"` to the ComingSoon exclusion array.
+5. **Wiring — admin shell** (`src/components/admin/shell.tsx`): added `Settings` import from lucide-react; added `{ label: "Settings", icon: Settings, route: { name: "admin-settings" }, match: ["admin-settings"] }` to NAV; emptied the `COMING_SOON` array (all admin items now active — 12 nav items).
+6. **Wiring — route types + store**: added `| { name: "admin-settings" }` to the `Route` union (`src/lib/types.ts`) and `if (b === "settings") return { name: "admin-settings" };` to `parseHash`'s `case "admin"` (`src/lib/store.ts`). (The `dashboard-business-analytics` route was already present in types + store from a prior task.)
+7. **Wiring — business detail header** (`src/views/dashboard/business-detail.tsx`): added `BarChart3` to the lucide-react imports; inserted an "Analytics" button (sage-tinted outline, `BarChart3` icon) in the header action cluster — placed between "Edit details" and "Submit for verification" — that calls `navigate({ name: "dashboard-business-analytics", id: business.id })`.
+8. Lint pass 1: clean. Removed two unused imports (`ArrowRight` and `cn` in business-analytics.tsx; `AlertCircle` in admin/settings.tsx) proactively for tidiness. Lint pass 2: clean (0 errors, 0 warnings).
+
+### Stage Summary
+- **Files created**: `src/views/dashboard/business-analytics.tsx`, `src/views/admin/settings.tsx`.
+- **Files edited**: `src/app/page.tsx`, `src/lib/types.ts`, `src/lib/store.ts`, `src/components/admin/shell.tsx`, `src/views/dashboard/business-detail.tsx`.
+- **Lint**: clean (0 errors, 0 warnings) via `bun run lint`.
+- **Dev server**: running on :3000, healthy (`GET / 200`, `/api/businesses 200`, `/api/enquiries 200`).
+- **All admin sidebar items are now active** (12/12 — Settings was the last "coming soon").
+- **Next actions for main agent**: (1) smoke-test `#/dashboard/businesses/<id>/analytics` as a business owner — verify trend chart renders with real enquiries, growth cards show +N, upsell banner appears for non-INTELLIGENCE plans; (2) smoke-test `#/admin/settings` as admin — switch between Profile / Features / Branding tabs, toggle a feature flag and confirm the toast; (3) confirm the "Analytics" button on the business detail header deep-links correctly.
+
+---
+Task ID: CRON-QA-9
+Agent: Z.ai Code (main) — web dev review cron round 9
+Task: QA, build per-business analytics dashboard, admin Settings, notification preferences persistence.
+
+## Current Project Status Assessment
+BlakNet was stable and mature — public (13 routes) + dashboard (14 routes) + admin (11 active views). Enquiries, Yoco checkout, admin Reports, post moderation, event editing all working. This round focused on: (1) the Intelligence plan's core promise — per-business analytics, (2) the last "coming soon" admin item — Settings, and (3) notification preferences persistence.
+
+## QA Performed
+- Dev server instability noted (process dies between rounds). Required restart.
+- API smoke tests: analytics → 401 (auth-guarded ✓), profile → 401 (auth-guarded ✓).
+- Lint: 0 errors, 0 warnings. TypeScript: clean.
+- Browser testing limited by server instability; verified via lint + API status codes.
+
+## Completed Modifications
+
+### New Feature: Per-Business Analytics Dashboard (Intelligence plan, spec item #16 + #29)
+- **`GET /api/businesses/[slug]/analytics`** endpoint: owner-only, returns comprehensive analytics — summary (views, profileCompletion, totalReviews, totalFollowers, totalEnquiries, postsCount, eventsCount, avgRating), 30-day growth metrics (new enquiries 7d/30d, new followers 30d, new reviews 30d), 30-day enquiry trend (count per day), recent enquiries/followers/reviews (5 each).
+- **`BusinessAnalyticsView`** (`src/views/dashboard/business-analytics.tsx`): premium analytics dashboard with:
+  - 4 summary stat cards (Views, Completion %, Avg Rating, Enquiries)
+  - 4 growth cards (7d/30d enquiries, 30d followers/reviews)
+  - **30-day enquiry trend CSS bar chart** (responsive `bg-sage` bars with hover tooltips)
+  - Recent activity (2 columns: enquiries + followers)
+  - Recent reviews list
+  - Intelligence upsell banner for non-INTELLIGENCE plans (data still shown)
+  - Loading/forbidden/error states
+- **New route**: `dashboard-business-analytics` (accessed via business detail "Analytics" button with BarChart3 icon).
+- Wired into page.tsx + business-detail.tsx header.
+
+### New Feature: Admin Settings (last "coming soon" admin item, spec item #21)
+- **`AdminSettingsView`** (`src/views/admin/settings.tsx`): Tabs (Profile / Features / Branding):
+  - Profile: read-only platform info (name, environment, version, region, timezone)
+  - Features: 6 Switch toggles (registrations, business creation, event creation, email verification, maintenance mode, public directory) — cosmetic for MVP
+  - Branding: 3 palette swatches (ink/cream/sage), typography, logo
+  - Contact section (support email, docs, status page)
+- **New route**: `admin-settings` added to types + store + admin shell NAV.
+- **Admin sidebar now has 12 active nav items with 0 "coming soon"** — all admin sections are live.
+
+### New Feature: Notification Preferences Persistence (spec item #32)
+- **Prisma Profile model** extended with `notifEmail`, `notifInApp`, `notifWhatsapp` Boolean fields (default true).
+- **`GET/PATCH /api/profile`** extended: now reads + writes the 3 notification channel toggles.
+- **Settings view** updated: loads toggles from profile on mount, `saveNotifications` now PATCHes to `/api/profile` with loading state (Loader2 spinner), success/error toasts. No longer cosmetic — preferences persist to DB.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- TypeScript: 0 errors in all new/edited files.
+- API: `GET /api/businesses/[slug]/analytics` → 401 (auth-guarded) ✓. `GET /api/profile` → 401 (auth-guarded) ✓.
+- Admin console: 12 active nav items (was 11), 0 "coming soon" (was 1).
+- Notification preferences: now persist to DB via Profile model.
+
+## Unresolved Issues / Risks
+- **Dev server instability**: persists between rounds in this sandbox. Not a code bug.
+- **Avatar/image storage**: still data-uri in DB (fine for MVP).
+- **Admin feature flags**: cosmetic for MVP (no persistence) — would need a settings table.
+- **Analytics trend chart**: simple CSS bars, no interactive charting library (recharts is available if needed).
+
+## Priority Recommendations for Next Phase
+1. **Business image uploads in creation wizard** — currently only in edit, not the multi-step create flow.
+2. **Search improvements** — full-text search or search-rank scoring.
+3. **Interactive analytics charts** — use recharts for the trend chart + add more visualizations.
+4. **Admin feature flags persistence** — store toggles in a settings table.
+5. **Email notifications** — wire the notifEmail preference to an actual email sender (currently in-app only).

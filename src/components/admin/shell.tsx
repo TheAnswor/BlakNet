@@ -19,12 +19,12 @@ import {
   BookOpen,
   CreditCard,
   TrendingUp,
-  Clock,
   Sparkles,
   Menu,
   LogOut,
   ArrowRight,
   Star,
+  Settings,
 } from "lucide-react";
 
 interface NavItem {
@@ -46,6 +46,7 @@ const NAV: NavItem[] = [
   { label: "Newsfeed", icon: Newspaper, route: { name: "admin-newsfeed" }, match: ["admin-newsfeed"] },
   { label: "Resources", icon: BookOpen, route: { name: "admin-resources" }, match: ["admin-resources"] },
   { label: "Reports", icon: TrendingUp, route: { name: "admin-reports" }, match: ["admin-reports"] },
+  { label: "Settings", icon: Settings, route: { name: "admin-settings" }, match: ["admin-settings"] },
 ];
 
 interface SoonItem {
@@ -53,9 +54,7 @@ interface SoonItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const COMING_SOON: SoonItem[] = [
-  { label: "Settings", icon: Clock },
-];
+const COMING_SOON: SoonItem[] = [];
 
 function currentLabel(name: string) {
   const item = NAV.find((n) => n.match.includes(name));

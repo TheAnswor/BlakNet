@@ -42,6 +42,8 @@ import { AdminNewsfeedView } from "@/views/admin/newsfeed";
 import { AdminResourcesView } from "@/views/admin/resources";
 import { AdminReportsView } from "@/views/admin/reports";
 import { ComingSoon } from "@/views/public/coming-soon";
+import { BusinessAnalyticsView } from "@/views/dashboard/business-analytics";
+import { AdminSettingsView } from "@/views/admin/settings";
 
 // Routes that show the public header + footer (marketing surface)
 const PUBLIC_ROUTES = new Set([
@@ -104,6 +106,7 @@ export default function Page() {
         {route.name === "dashboard-businesses" && <MyBusinessesView />}
         {route.name === "dashboard-business-new" && <NewBusinessView />}
         {route.name === "dashboard-business" && <BusinessDetailView />}
+        {route.name === "dashboard-business-analytics" && <BusinessAnalyticsView />}
         {route.name === "dashboard-network" && <NetworkView />}
         {route.name === "dashboard-following" && <FollowingView />}
         {route.name === "dashboard-enquiries" && <EnquiriesView />}
@@ -120,6 +123,7 @@ export default function Page() {
           "dashboard-businesses",
           "dashboard-business-new",
           "dashboard-business",
+          "dashboard-business-analytics",
           "dashboard-network",
           "dashboard-following",
           "dashboard-enquiries",
@@ -150,6 +154,7 @@ export default function Page() {
         {route.name === "admin-newsfeed" && <AdminNewsfeedView />}
         {route.name === "admin-resources" && <AdminResourcesView />}
         {route.name === "admin-reports" && <AdminReportsView />}
+        {route.name === "admin-settings" && <AdminSettingsView />}
       </AdminShell>
     );
   }

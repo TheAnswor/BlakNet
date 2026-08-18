@@ -47,6 +47,7 @@ import { formatDate, formatNumber, provinceCity, verificationLabel } from "@/lib
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   Building2,
   ShieldCheck,
   CheckCircle2,
@@ -446,6 +447,15 @@ function BusinessDetail({ id }: { id: string }) {
           </Button>
           <Button variant="outline" onClick={openEdit}>
             <Pencil className="mr-1.5 h-4 w-4" /> Edit details
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              navigate({ name: "dashboard-business-analytics", id: business.id })
+            }
+            className="border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+          >
+            <BarChart3 className="mr-1.5 h-4 w-4" /> Analytics
           </Button>
           {!isVerified && !isPending && (
             <Button

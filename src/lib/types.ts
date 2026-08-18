@@ -192,6 +192,7 @@ export type Route =
   | { name: "dashboard-businesses" }
   | { name: "dashboard-business-new" }
   | { name: "dashboard-business"; id: string }
+  | { name: "dashboard-business-analytics"; id: string }
   | { name: "dashboard-network" }
   | { name: "dashboard-following" }
   | { name: "dashboard-enquiries" }
@@ -213,4 +214,5 @@ export type Route =
   | { name: "admin-events" }
   | { name: "admin-newsfeed" }
   | { name: "admin-resources" }
-  | { name: "admin-reports" };
+  | { name: "admin-reports" }
+  | { name: "admin-settings" };

@@ -37,6 +37,11 @@ function parseHash(hash: string): Route {
       if (b === "businesses") {
         if (!c || c === "") return { name: "dashboard-businesses" };
         if (c === "new") return { name: "dashboard-business-new" };
+        // dashboard/businesses/[id]/analytics
+        const parts = clean.split("/");
+        if (parts.length >= 4 && parts[3] === "analytics") {
+          return { name: "dashboard-business-analytics", id: decodeURIComponent(c) };
+        }
         return { name: "dashboard-business", id: decodeURIComponent(c) };
       }
       if (b === "network") return { name: "dashboard-network" };
@@ -61,6 +66,7 @@ function parseHash(hash: string): Route {
       if (b === "subscriptions") return { name: "admin-subscriptions" };
       if (b === "industries") return { name: "admin-industries" };
       if (b === "reports") return { name: "admin-reports" };
+      if (b === "settings") return { name: "admin-settings" };
       if (b === "events") return { name: "admin-events" };
       if (b === "newsfeed") return { name: "admin-newsfeed" };
       if (b === "resources") return { name: "admin-resources" };

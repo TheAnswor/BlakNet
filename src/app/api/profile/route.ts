@@ -17,6 +17,9 @@ export async function GET() {
           location: profile.location,
           website: profile.website,
           linkedin: profile.linkedin,
+          notifEmail: profile.notifEmail,
+          notifInApp: profile.notifInApp,
+          notifWhatsapp: profile.notifWhatsapp,
         }
       : null,
   });
@@ -29,7 +32,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));
-  const { firstName, lastName, phone, bio, profileImage, headline, location, website, linkedin } = body;
+  const { firstName, lastName, phone, bio, profileImage, headline, location, website, linkedin, notifEmail, notifInApp, notifWhatsapp } = body;
 
   // validate
   const updates: Record<string, unknown> = {};
@@ -63,6 +66,9 @@ export async function PATCH(req: Request) {
   if (location !== undefined) profileUpdates.location = String(location).trim().slice(0, 120) || null;
   if (website !== undefined) profileUpdates.website = String(website).trim().slice(0, 200) || null;
   if (linkedin !== undefined) profileUpdates.linkedin = String(linkedin).trim().slice(0, 200) || null;
+  if (notifEmail !== undefined) profileUpdates.notifEmail = !!notifEmail;
+  if (notifInApp !== undefined) profileUpdates.notifInApp = !!notifInApp;
+  if (notifWhatsapp !== undefined) profileUpdates.notifWhatsapp = !!notifWhatsapp;
 
   await db.$transaction([
     db.user.update({ where: { id: user.id }, data: updates }),
@@ -90,6 +96,9 @@ export async function PATCH(req: Request) {
           location: profile.location,
           website: profile.website,
           linkedin: profile.linkedin,
+          notifEmail: profile.notifEmail,
+          notifInApp: profile.notifInApp,
+          notifWhatsapp: profile.notifWhatsapp,
         }
       : null,
   });
