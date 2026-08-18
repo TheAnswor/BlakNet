@@ -10,6 +10,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/blaknet/section";
 import { Pill, VerifiedBadge } from "@/components/blaknet/badges";
 import { StarRating } from "@/components/blaknet/star-rating";
+import {
+  EnquiryTrendChart,
+  GrowthBarChart,
+} from "@/components/blaknet/charts";
 import { formatNumber, initials, timeAgo } from "@/lib/format";
 import type { Plan, VerificationStatus } from "@/lib/types";
 import {
@@ -362,8 +366,44 @@ function BusinessAnalytics({ id }: { id: string }) {
         </div>
       </section>
 
-      {/* Enquiry trend chart */}
-      <EnquiryTrendChart trend={data.trend} />
+      {/* Growth — last 30 days (bar chart) */}
+      <section className="card-soft animate-fade-in-up rounded-xl border border-border bg-card p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-sage" />
+            <h2 className="font-display text-lg tracking-tight">
+              Growth — last 30 days
+            </h2>
+          </div>
+          <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+            New activity
+          </span>
+        </div>
+        <GrowthBarChart
+          data={[
+            { name: "Enquiries 7d", value: data.growth.newEnquiries7d },
+            { name: "Enquiries 30d", value: data.growth.newEnquiries30d },
+            { name: "Followers 30d", value: data.growth.newFollowers30d },
+            { name: "Reviews 30d", value: data.growth.newReviews30d },
+          ]}
+        />
+      </section>
+
+      {/* Enquiry trend chart (recharts Area) */}
+      <section className="card-soft animate-fade-in-up rounded-xl border border-border bg-card p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-sage" />
+            <h2 className="font-display text-lg tracking-tight">
+              Enquiries — last 30 days
+            </h2>
+          </div>
+          <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+            {formatNumber(data.trend.reduce((s, p) => s + p.count, 0))} total
+          </span>
+        </div>
+        <EnquiryTrendChart data={data.trend} />
+      </section>
 
       {/* Recent activity (enquiries + followers) */}
       <section className="grid gap-6 lg:grid-cols-2">
@@ -378,65 +418,6 @@ function BusinessAnalytics({ id }: { id: string }) {
         Snapshot generated {timeAgo(new Date())}.
       </p>
     </div>
-  );
-}
-
-// ---------- enquiry trend chart ----------
-function EnquiryTrendChart({ trend }: { trend: TrendPoint[] }) {
-  const max = trend.reduce((m, p) => Math.max(m, p.count), 0);
-  const total = trend.reduce((s, p) => s + p.count, 0);
-
-  return (
-    <section className="card-soft animate-fade-in-up rounded-xl border border-border bg-card p-5 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-sage" />
-          <h2 className="font-display text-lg tracking-tight">
-            Enquiries — last 30 days
-          </h2>
-        </div>
-        <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-          {formatNumber(total)} total
-        </span>
-      </div>
-
-      {max === 0 ? (
-        <div className="flex items-center justify-center rounded-lg bg-muted/40 px-4 py-10 text-center text-sm text-muted-foreground">
-          No enquiries in the last 30 days.
-        </div>
-      ) : (
-        <div
-          className="flex h-40 items-end gap-0.5"
-          role="img"
-          aria-label="30-day enquiry trend"
-        >
-          {trend.map((p, i) => {
-            const h = max > 0 ? Math.max(4, Math.round((p.count / max) * 100)) : 0;
-            return (
-              <div
-                key={p.date}
-                className="group relative flex-1"
-                title={`${p.date}: ${p.count}`}
-                style={{ animationDelay: `${i * 12}ms` }}
-              >
-                <div
-                  className="w-full rounded-sm bg-sage transition-[height] duration-500"
-                  style={{ height: `${h}%` }}
-                />
-                {/* tooltip */}
-                <div className="pointer-events-none absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground shadow-sm group-hover:block">
-                  {p.count} · {p.date.slice(5)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground/70">
-        <span>{trend[0]?.date.slice(5) ?? ""}</span>
-        <span>{trend[trend.length - 1]?.date.slice(5) ?? ""}</span>
-      </div>
-    </section>
   );
 }
 

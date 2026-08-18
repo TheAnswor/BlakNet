@@ -25,6 +25,7 @@ import {
 } from "@/lib/constants";
 import type { Industry } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ImageUpload } from "@/components/blaknet/image-upload";
 import {
   ArrowRight,
   ArrowLeft,
@@ -64,6 +65,8 @@ interface FormState {
   phone: string;
   whatsapp: string;
   address: string;
+  logoUrl: string;
+  coverUrl: string;
   services: string[];
   products: string[];
 }
@@ -86,6 +89,8 @@ const INITIAL: FormState = {
   phone: "",
   whatsapp: "",
   address: "",
+  logoUrl: "",
+  coverUrl: "",
   services: [],
   products: [],
 };
@@ -219,6 +224,8 @@ export function NewBusinessView() {
         annualRevenue: form.annualRevenue || undefined,
         cipcNumber: form.cipcNumber.trim() || undefined,
         bbbeeLevel: form.bbbeeLevel || undefined,
+        logoUrl: form.logoUrl || undefined,
+        coverUrl: form.coverUrl || undefined,
         services: form.services,
         products: form.products,
       };
@@ -281,6 +288,36 @@ export function NewBusinessView() {
               description="Start with the essentials. You can refine everything later."
             />
             <Separator />
+
+            {/* Brand images */}
+            <div className="rounded-xl border border-border bg-background/50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                Brand images
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A logo helps your business stand out in the directory.
+              </p>
+              <div className="mt-3 flex flex-wrap items-start gap-6">
+                <div className="space-y-1.5">
+                  <Label>Logo</Label>
+                  <ImageUpload
+                    value={form.logoUrl || null}
+                    onChange={(v) => update("logoUrl", v || "")}
+                    label="Upload logo"
+                    aspect="square"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Cover</Label>
+                  <ImageUpload
+                    value={form.coverUrl || null}
+                    onChange={(v) => update("coverUrl", v || "")}
+                    label="Upload cover"
+                    aspect="wide"
+                  />
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="name">

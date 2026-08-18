@@ -137,6 +137,8 @@ export async function POST(req: Request) {
     annualRevenue,
     cipcNumber,
     bbbeeLevel,
+    logoUrl,
+    coverUrl,
     services = [],
     products = [],
   } = body;
@@ -176,6 +178,8 @@ export async function POST(req: Request) {
       annualRevenue: annualRevenue || null,
       cipcNumber: cipcNumber || null,
       bbbeeLevel: bbbeeLevel || null,
+      logoUrl: logoUrl || null,
+      coverUrl: coverUrl || null,
       verificationStatus: "NOT_VERIFIED",
       profileCompletion: completion,
       services: services.length ? { create: (services as string[]).map((s) => ({ name: s })) } : undefined,
