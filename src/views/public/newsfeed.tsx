@@ -486,6 +486,7 @@ function TrendingSidebar({
   filter: PostType | "all";
   setFilter: (f: PostType | "all") => void;
 }) {
+  const { navigate } = useApp();
   const chips: { value: PostType | "all"; label: string }[] = [
     { value: "all", label: "All" },
     { value: "text", label: "Text" },
@@ -531,6 +532,60 @@ function TrendingSidebar({
             <li>• Cite sources when posting news.</li>
             <li>• Promote other Black businesses.</li>
           </ul>
+        </div>
+
+        {/* Footer info card */}
+        <div className="border border-border bg-card rounded-xl p-5">
+          <h3 className="font-display text-lg tracking-tight">BlakNet</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Built for Black Business. Built for Opportunity.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5">
+            <button
+              type="button"
+              onClick={() => navigate({ name: "about" })}
+              className="link-underline text-left text-sm text-foreground/70 hover:text-foreground"
+            >
+              About
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate({ name: "dashboard-help" })}
+              className="link-underline text-left text-sm text-foreground/70 hover:text-foreground"
+            >
+              Help
+            </button>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); navigate({ name: "about" }); }}
+              className="link-underline text-sm text-foreground/70 hover:text-foreground"
+            >
+              Privacy &amp; Policy
+            </a>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); navigate({ name: "about" }); }}
+              className="link-underline text-sm text-foreground/70 hover:text-foreground"
+            >
+              Terms &amp; Conditions
+            </a>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); navigate({ name: "about" }); }}
+              className="link-underline text-sm text-foreground/70 hover:text-foreground"
+            >
+              Compliance
+            </a>
+            <a
+              href="mailto:hello@blaknet.co.za"
+              className="link-underline text-sm text-foreground/70 hover:text-foreground"
+            >
+              Contact
+            </a>
+          </div>
+          <div className="mt-4 border-t border-border pt-3 text-[11px] text-muted-foreground">
+            © {new Date().getFullYear()} BlakNet. All rights reserved.
+          </div>
         </div>
       </div>
     </aside>
@@ -630,8 +685,10 @@ export function NewsfeedView() {
                 />
               ) : (
                 <div className="space-y-5">
-                  {filtered.map((p) => (
-                    <PostCard key={p.id} post={p} authUser={authUser} />
+                  {/* Infinite loop: duplicate posts so the feed never ends.
+                      When the user reaches the last post, the first post appears again. */}
+                  {[...filtered, ...filtered, ...filtered].map((p, i) => (
+                    <PostCard key={`${p.id}-${i}`} post={p} authUser={authUser} />
                   ))}
                 </div>
               )}

@@ -185,7 +185,7 @@ export default function Page() {
           route.name !== "pricing" &&
           route.name !== "about" && <ComingSoon route={route} />}
       </main>
-      {isPublic && <PublicFooter />}
+      {isPublic && route.name !== "newsfeed" && <PublicFooter />}
     </div>
   );
 }
