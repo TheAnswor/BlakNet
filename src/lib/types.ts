@@ -194,6 +194,7 @@ export type Route =
   | { name: "dashboard-business"; id: string }
   | { name: "dashboard-network" }
   | { name: "dashboard-following" }
+  | { name: "dashboard-enquiries" }
   | { name: "dashboard-newsfeed" }
   | { name: "dashboard-events" }
   | { name: "dashboard-event-new" }

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { ImageUpload } from "@/components/blaknet/image-upload";
 import { EVENT_CATEGORIES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import type { Business } from "@/lib/types";
 import {
   ArrowLeft,
@@ -335,33 +336,43 @@ export function NewEventView() {
             </div>
           </div>
 
-          {/* Online toggle */}
-          <div className="flex items-center justify-between rounded-xl border border-border bg-background/60 p-4">
-            <div className="pr-4">
-              <div className="flex items-center gap-2">
-                {form.isOnline ? (
-                  <Video className="h-4 w-4 text-sage" />
-                ) : (
-                  <MapPin className="h-4 w-4 text-sage" />
-                )}
-                <Label htmlFor="ev-online" className="cursor-pointer text-sm font-medium">
+          {/* Online toggle — simple inline row */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="ev-online" className="cursor-pointer text-sm font-medium">
+                <span className="inline-flex items-center gap-2">
+                  {form.isOnline ? (
+                    <Video className="h-4 w-4 text-sage" />
+                  ) : (
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                  )}
                   Is this an online event?
-                </Label>
+                </span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors",
+                    form.isOnline ? "text-sage" : "text-muted-foreground",
+                  )}
+                >
+                  {form.isOnline ? "Online" : "In-person"}
+                </span>
+                <Switch
+                  id="ev-online"
+                  checked={form.isOnline}
+                  onCheckedChange={(v) => update("isOnline", v)}
+                />
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Toggle on to host virtually — you&apos;ll add a meeting link.
-              </p>
             </div>
-            <Switch
-              id="ev-online"
-              checked={form.isOnline}
-              onCheckedChange={(v) => update("isOnline", v)}
-            />
+            <p className="text-[11px] text-muted-foreground">
+              Toggle on to host virtually — you&apos;ll add a meeting link.
+            </p>
           </div>
 
-          {/* Online URL or Location */}
+          {/* Online URL or Location — appears directly below with smooth transition */}
           {form.isOnline ? (
-            <div className="space-y-2">
+            <div key="online-url" className="space-y-2 animate-fade-in-up">
               <Label htmlFor="ev-online-url">Online URL</Label>
               <div className="relative">
                 <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -379,7 +390,7 @@ export function NewEventView() {
               )}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div key="location" className="space-y-2 animate-fade-in-up">
               <Label htmlFor="ev-loc">Location</Label>
               <div className="relative">
                 <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -477,7 +488,7 @@ export function NewEventView() {
           <Button
             type="submit"
             disabled={submitting || !isValid}
-            className="btn-lift bg-ink text-cream shadow-md hover:bg-ink/90"
+            className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90 disabled:opacity-40 disabled:shadow-none"
           >
             {submitting ? (
               <>

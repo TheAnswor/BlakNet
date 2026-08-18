@@ -25,6 +25,7 @@ import { DashboardEventsView } from "@/views/dashboard/events";
 import { NewEventView } from "@/views/dashboard/event-new";
 import { NetworkView } from "@/views/dashboard/network";
 import { FollowingView } from "@/views/dashboard/following";
+import { EnquiriesView } from "@/views/dashboard/enquiries";
 import { NotificationsView } from "@/views/dashboard/notifications";
 import { PlanView } from "@/views/dashboard/plan";
 import { SettingsView } from "@/views/dashboard/settings";
@@ -104,6 +105,7 @@ export default function Page() {
         {route.name === "dashboard-business" && <BusinessDetailView />}
         {route.name === "dashboard-network" && <NetworkView />}
         {route.name === "dashboard-following" && <FollowingView />}
+        {route.name === "dashboard-enquiries" && <EnquiriesView />}
         {route.name === "dashboard-notifications" && <NotificationsView />}
         {route.name === "dashboard-plan" && <PlanView />}
         {route.name === "dashboard-settings" && <SettingsView />}
@@ -119,6 +121,7 @@ export default function Page() {
           "dashboard-business",
           "dashboard-network",
           "dashboard-following",
+          "dashboard-enquiries",
           "dashboard-notifications",
           "dashboard-plan",
           "dashboard-settings",

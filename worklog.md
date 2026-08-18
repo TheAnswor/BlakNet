@@ -1093,3 +1093,98 @@ BlakNet was stable and mature — public (13 routes) + dashboard (13 routes) + a
 3. **Admin Reports view** — analytics dashboard (profile views, search appearances, enquiries, registrations).
 4. **Event editing** — let organizers edit/delete their own events (PATCH/DELETE endpoints + UI).
 5. **Notification preferences persistence** — store the 3 channel toggles on User/Profile.
+
+---
+Task ID: ENQUIRIES-UI
+Agent: Z.ai Code (sub agent) — frontend engineer
+Task: Build business enquiries UI (public contact form + dashboard view) and polish the event creation form.
+
+## Work Log
+This session delivered two frontend tracks on top of the existing BlakNet codebase:
+
+### Track A — Business Enquiries UI
+1. **`src/views/public/business-profile.tsx`** (edited) — added a sidebar "Enquire about this business" card with a compact public enquiry form (Name + Email required, Phone + Company optional, Enquiry-type Select with General/Procurement/Partnership/Service, Message Textarea rows=3 required). Prefills name/email/phone from `authUser` via `useEffect`. Submits to `POST /api/businesses/[slug]/enquiries`, toasts "Enquiry sent — the business will be in touch.", clears message+company on success (keeps name/email for repeat enquiries). On error: destructive toast with server message. When `business.isOwner` is true, the form is replaced by an `OwnerEnquiryNote` card pointing to `dashboard-enquiries`. New icons added to imports: `ArrowRight`, `Send`, `Loader2`, `Inbox`. New `Label` import. New `AuthUser` type import. All existing functionality (Follow, Edit, Reviews, Services, Products, Trust signals, Share) preserved untouched.
+2. **`src/views/dashboard/enquiries.tsx`** (created) — exports `EnquiriesView`. Heading "Enquiries" + subtitle. Fetches `GET /api/enquiries` → `{ items, stats }`. Top stat chips: Total + New (sage accent when New > 0). Filter pill row (All/New/Read/Responded/Archived) with live counts, client-side filter. Enquiry cards show: clickable business logo+name (navigates to `business` route), enquirer name + company, mailto email link, tel phone link (when present), enquiry-type Pill, full message in a bordered quote block, `timeAgo` timestamp, status badge. Per-enquiry actions: "Mark as read" (only when status === "new"), "Mark responded" (hidden once responded/archived), "Reply by email" (mailto with prefilled subject), "Archive" — each calls `PATCH /api/enquiries` with `{ id, status }`, optimistic update + revert on error, success toast. Loading skeleton (4 cards), error EmptyState with "Try again" action, empty EmptyState (`Inbox` icon, "No enquiries yet."), staggered `animate-fade-in-up` (capped at 8 items × 50ms). Uses BlakNet tokens (`bg-card`, `text-muted-foreground`, `border-border`, `text-sage`, `bg-sage/12`, `border-l-sage`, `font-display`, `card-soft`); shadcn primitives `Button`, `Skeleton`, `Separator`; blaknet `EmptyState`, `Pill`.
+3. **`src/components/dashboard/shell.tsx`** (edited) — added `Inbox` to lucide-react imports and inserted `{ label: "Enquiries", icon: Inbox, route: { name: "dashboard-enquiries" }, match: ["dashboard-enquiries"] }` into the NAV array immediately after "Following".
+4. **`src/app/page.tsx`** (edited) — imported `EnquiriesView`, added `{route.name === "dashboard-enquiries" && <EnquiriesView />}` inside `<DashboardShell>`, added `"dashboard-enquiries"` to the ComingSoon exclusion array. Route type already existed in `src/lib/types.ts` and store parser.
+
+### Track B — Event Creation Form Polish (`src/views/dashboard/event-new.tsx`)
+1. **Online toggle redesigned** — removed the heavy `rounded-xl border bg-background/60 p-4` container. Toggle is now a simple inline row matching the field-grouping pattern of other fields (`space-y-2` with label + helper text). Added a small uppercase tracking label next to the Switch that reads "Online" (sage) when on, "In-person" (muted-foreground) when off, with `transition-colors`. The dependent field (Online URL / Location) appears directly below with `animate-fade-in-up` + React `key` to ensure smooth remount transition when toggled.
+2. **Submit button affordance** — `className` updated to `btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90 disabled:opacity-40 disabled:shadow-none` (was missing the `shadow-ink/15` tint and the disabled state styling). The CTA now clearly reads as primary and dims cleanly when invalid.
+3. **Spacing consistency** — outer `space-y-6` container preserved (consistent vertical rhythm across all field groups); the new toggle row uses the same `space-y-2` label/input pattern as every other field group. Added `cn` import from `@/lib/utils` (was missing).
+
+## Stage Summary
+- Public visitors can now send structured enquiries (with type classification) to any business from the business profile sidebar — converting profile views into qualified leads.
+- Business owners have a dedicated **Enquiries** dashboard view (linked from sidebar between Following and Newsfeed, and from the owner's own profile sidebar) to triage, respond to, and archive incoming enquiries. Status workflow `new → read → responded → archived` is fully clickable with optimistic updates.
+- Event creation form is more polished: clearer online/in-person affordance with state label, smooth transition on the conditional Location/URL field, and a properly primary submit button with sensible disabled state.
+- All code reuses the BlakNet brand system (ink/cream/sage, font-display, card-soft, btn-lift, animate-fade-in-up, EmptyState, Pill) and shadcn/ui primitives (Button, Input, Textarea, Label, Select, Switch, Skeleton, Separator). No blue/indigo introduced. TypeScript strict, no `any`.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings (`bun run lint` clean).
+- Dev server: healthy, multiple `✓ Compiled` lines, no errors.
+- API smoke tests: `GET /api/enquiries` → 200 `{"items":[]}` (correct empty-state response for unauthed session); `GET /` → 200.
+- Route plumbing: `dashboard-enquiries` route already existed in `src/lib/types.ts` and `src/lib/store.ts` parser — only wiring (sidebar nav + page.tsx render branch + ComingSoon exclusion) needed.
+
+## Notes / Next Steps
+- The enquiry form deliberately keeps name/email/phone after a successful send so a logged-in user firing multiple enquiries doesn't have to retype. Only message + company reset. If this UX is unwanted, the reset line in `EnquiryCard.handleSubmit` is the one to change.
+- `Reply by email` uses a mailto with `subject=Re: your enquiry about <business name>` — no body prefilled so the owner starts fresh. Could be extended with a template.
+- Filter counts use a client-side `useMemo` over the loaded items — works for the current owner-scoped dataset size. If enquiry volume grows large, consider server-side filtering via `?status=` query.
+
+---
+Task ID: CRON-QA-7
+Agent: Z.ai Code (main) — web dev review cron round 7
+Task: QA, add business enquiries feature, Yoco subscription checkout, event form polish.
+
+## Current Project Status Assessment
+BlakNet was stable and mature — public (13 routes) + dashboard (13 routes) + admin (10 active views) all polished and functional (8/10 VLM across the board). This round focused on closing the top two functional gaps from the spec: (1) business enquiries (visitors enquire → owners see them), and (2) Yoco subscription checkout (plan upgrade → payment → status update).
+
+## QA Performed
+- VLM reviews of event creation form (8/10), dashboard overview (8/10), admin overview (8/10).
+- Tested Yoco checkout end-to-end (fill card → Pay → "Payment successful" → plan upgraded to INTELLIGENCE) ✓.
+- Tested enquiry API (POST → 201) ✓.
+- Lint: 0 errors, 0 warnings throughout.
+- Dev server restart required after Prisma schema change (BusinessEnquiry model) — bumped db.ts schema version to v3-enquiries.
+
+## Completed Modifications
+
+### New Feature: Business Enquiries (fully functional, spec item #6.9 + #29)
+- **Prisma `BusinessEnquiry` model**: id, businessId, userId (optional), name, email, phone, company, message, enquiryType (general/procurement/partnership/service), status (new/read/responded/archived), createdAt. Relations on Business + User.
+- **`POST /api/businesses/[slug]/enquiries`**: public (no auth required), validates name/email/message, creates enquiry, notifies the business owner via in-app notification. 201 on success.
+- **`GET /api/enquiries`**: owner-only, returns enquiries for all businesses owned by the user + stats (total, new count).
+- **`PATCH /api/enquiries`**: owner-only, updates enquiry status (new/read/responded/archived) with ownership verification.
+- **Business profile enquiry form**: compact sidebar card "Enquire about this business" with Name, Email, Phone, Company, enquiry-type Select, Message. Prefills from authUser. Submit → POST → toast "Enquiry sent — the business will be in touch." Owner sees a note linking to dashboard-enquiries instead of the form.
+- **Dashboard EnquiriesView**: heading + stats chips (Total, New), filter pill row (All/New/Read/Responded/Archived), enquiry cards with business logo+name (clickable), enquirer details, mailto/tel links, message, timeAgo, status badge. Actions: Mark as read / Mark responded / Reply by email / Archive (PATCH with optimistic update). Empty state (Inbox icon).
+- **New route**: `dashboard-enquiries` added to types + store + dashboard shell NAV (Inbox icon, after Following).
+
+### New Feature: Yoco Subscription Checkout (Phase 3 revenue path, spec item #17)
+- **`POST /api/subscriptions/upgrade`**: auth-required, validates plan, upserts subscription (plan, status ACTIVE, provider "yoco", providerSubscriptionId, startDate, endDate +30 days), updates user.plan, creates a notification. In production this would be called by a Yoco webhook; for MVP it simulates payment success.
+- **`YocoCheckout` component** (`src/components/blaknet/yoco-checkout.tsx`): premium checkout dialog with 3 steps (form → processing → done). Card form: name on card, card number (auto-formats 4-digit groups), expiry (MM/YY), CVC. Simulates 1.8s processing, then POSTs to upgrade endpoint, refreshes auth, shows "Payment successful" with check animation. Security note: "This is a simulated checkout for demo purposes… In production, handled securely by Yoco."
+- **Plan view integration**: "Upgrade to X" buttons now open the YocoCheckout dialog (was a "coming soon" toast). On success: toast "Plan upgraded!", refetches subscription, sidebar plan badge updates live.
+- **Verified end-to-end**: demo user (VERIFIED) → clicked "Upgrade to Intelligence" → filled card 4242… → Pay R895.00 → "Payment successful" → dashboard sidebar shows "INTELLIGENCE plan" ✓.
+
+### Styling Polish
+- **Event creation form** (via subagent): fixed field spacing consistency (replaced heavy toggle box with inline row), added Online/In-person state label next to Switch, dependent field transitions with animate-fade-in-up, submit button now `btn-lift bg-ink text-cream shadow-md` (clearly primary, not muted gray).
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy (required restart after schema change).
+- Functional tests:
+  - Yoco checkout: VERIFIED → Intelligence upgrade → "Payment successful" → plan changed ✓.
+  - Enquiry API: POST /api/businesses/lwazi-cloud-systems/enquiries → 201 ✓.
+  - Enquiry form on business profile: prefills name/email, submits ✓.
+  - Dashboard enquiries view: renders with stats + filter pills + enquiry cards ✓.
+  - Event form: polished spacing + toggle + submit button ✓.
+- VLM: Event form 8/10, Dashboard 8/10, Admin 8/10.
+
+## Unresolved Issues / Risks
+- **Dev server restart after schema changes**: required when adding new Prisma models (the running process holds the old client). Mitigated by db.ts schema-version check but still needs a manual restart.
+- **Yoco is simulated**: real Yoco SDK integration requires API keys + webhook endpoint (not possible in sandbox). The architecture is correct — a real webhook would call the same upgrade endpoint.
+- **Admin Reports + Settings** still "coming soon" (2 items).
+- **Notification preferences**: toggles still cosmetic.
+
+## Priority Recommendations for Next Phase
+1. **Admin Reports view** — analytics dashboard (profile views, search appearances, enquiries, registrations) — the Intelligence plan promises this.
+2. **Admin post moderation** — delete/pin/hide posts from admin newsfeed.
+3. **Event editing** — let organizers edit/delete their own events.
+4. **Notification preferences persistence** — store channel toggles.
+5. **Search improvements** — full-text search or search-rank scoring.

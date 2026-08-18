@@ -21,8 +21,9 @@ import { EmptyState } from "@/components/blaknet/section";
 import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
 import { StarRating } from "@/components/blaknet/star-rating";
 import { FollowButton } from "@/components/blaknet/follow-button";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { Business, BusinessReview } from "@/lib/types";
+import type { AuthUser, Business, BusinessReview } from "@/lib/types";
 import { formatNumber, provinceCity, timeAgo } from "@/lib/format";
 import {
   Globe,
@@ -40,11 +41,15 @@ import {
   ExternalLink,
   Frown,
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   Users,
   Banknote,
   FileText,
   Award,
+  Send,
+  Loader2,
+  Inbox,
 } from "lucide-react";
 
 // ---------- types ----------
@@ -606,6 +611,13 @@ function BusinessProfile({ slug }: { slug: string }) {
                   </ul>
                 </Card>
 
+                {/* Enquire (or owner note) */}
+                {b.isOwner ? (
+                  <OwnerEnquiryNote />
+                ) : (
+                  <EnquiryCard slug={slug} authUser={authUser} />
+                )}
+
                 {/* Trust signals */}
                 <Card>
                   <CardTitle>Trust Signals</CardTitle>
@@ -717,6 +729,226 @@ function TrustRow({
       </span>
       <div className="text-right">{value}</div>
     </li>
+  );
+}
+
+// ---------- Enquiry form (public sidebar) ----------
+
+const ENQUIRY_TYPES: { value: string; label: string }[] = [
+  { value: "general", label: "General" },
+  { value: "procurement", label: "Procurement" },
+  { value: "partnership", label: "Partnership" },
+  { value: "service", label: "Service" },
+];
+
+function OwnerEnquiryNote() {
+  const navigate = useApp((s) => s.navigate);
+  return (
+    <Card>
+      <CardTitle>Enquiries</CardTitle>
+      <Separator className="mb-4" />
+      <div className="flex flex-col gap-3 text-sm">
+        <div className="flex items-start gap-2.5 text-muted-foreground">
+          <Inbox className="mt-0.5 h-4 w-4 shrink-0 text-sage" />
+          <p>
+            This is your business — enquiries from interested buyers and partners
+            appear in your dashboard.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate({ name: "dashboard-enquiries" })}
+          className="w-fit"
+        >
+          View enquiries
+          <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function EnquiryCard({ slug, authUser }: { slug: string; authUser: AuthUser | null }) {
+  const { toast } = useToast();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [message, setMessage] = useState("");
+  const [enquiryType, setEnquiryType] = useState("general");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Prefill name/email from authUser when available.
+  useEffect(() => {
+    if (!authUser) return;
+    const fullName = [authUser.firstName, authUser.lastName].filter(Boolean).join(" ");
+    if (fullName) setName(fullName);
+    if (authUser.email) setEmail(authUser.email);
+    if (authUser.phone) setPhone(authUser.phone);
+  }, [authUser]);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      toast({
+        title: "Almost there",
+        description: "Please add your name, email and a short message.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api(`/api/businesses/${encodeURIComponent(slug)}/enquiries`, {
+        method: "POST",
+        json: {
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+          company: company.trim() || undefined,
+          message: message.trim(),
+          enquiryType,
+        },
+      });
+      toast({
+        title: "Enquiry sent",
+        description: "The business will be in touch.",
+      });
+      // Clear message + company; keep name/email/phone for repeat enquiries.
+      setMessage("");
+      setCompany("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not send enquiry.";
+      toast({ title: "Could not send enquiry", description: msg, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardTitle>Enquire about this business</CardTitle>
+      <Separator className="mb-4" />
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="enq-name" className="text-xs text-muted-foreground">
+              Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="enq-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              required
+              maxLength={120}
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="enq-email" className="text-xs text-muted-foreground">
+              Email <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="enq-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              maxLength={160}
+              className="h-9"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="enq-phone" className="text-xs text-muted-foreground">
+              Phone <span className="text-muted-foreground/70">(optional)</span>
+            </Label>
+            <Input
+              id="enq-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="082 123 4567"
+              maxLength={32}
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="enq-type" className="text-xs text-muted-foreground">
+              Enquiry type
+            </Label>
+            <Select value={enquiryType} onValueChange={setEnquiryType}>
+              <SelectTrigger id="enq-type" className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ENQUIRY_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="enq-company" className="text-xs text-muted-foreground">
+            Company <span className="text-muted-foreground/70">(optional)</span>
+          </Label>
+          <Input
+            id="enq-company"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="Your company"
+            maxLength={120}
+            className="h-9"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="enq-msg" className="text-xs text-muted-foreground">
+            Message <span className="text-destructive">*</span>
+          </Label>
+          <Textarea
+            id="enq-msg"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Briefly describe what you're looking for…"
+            rows={3}
+            required
+            maxLength={2000}
+          />
+        </div>
+
+        <Button
+          type="submit"
+          disabled={submitting}
+          className={cn(
+            "btn-lift w-full bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90",
+            "disabled:opacity-50 disabled:shadow-none",
+          )}
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Sending…
+            </>
+          ) : (
+            <>
+              <Send className="mr-1.5 h-4 w-4" /> Send enquiry
+            </>
+          )}
+        </Button>
+        <p className="text-center text-[11px] text-muted-foreground">
+          Your contact details are shared with this business only.
+        </p>
+      </form>
+    </Card>
   );
 }
 

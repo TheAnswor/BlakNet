@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Shield,
   Heart,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { initials } from "@/lib/format";
@@ -38,6 +39,7 @@ const NAV: NavItem[] = [
   { label: "My Businesses", icon: Building2, route: { name: "dashboard-businesses" }, match: ["dashboard-businesses", "dashboard-business-new", "dashboard-business"] },
   { label: "My Network", icon: Users, route: { name: "dashboard-network" }, match: ["dashboard-network"] },
   { label: "Following", icon: Heart, route: { name: "dashboard-following" }, match: ["dashboard-following"] },
+  { label: "Enquiries", icon: Inbox, route: { name: "dashboard-enquiries" }, match: ["dashboard-enquiries"] },
   { label: "Newsfeed", icon: Newspaper, route: { name: "dashboard-newsfeed" }, match: ["dashboard-newsfeed"] },
   { label: "Events", icon: Calendar, route: { name: "dashboard-events" }, match: ["dashboard-events"] },
   { label: "Resources", icon: BookOpen, route: { name: "dashboard-resources" }, match: ["dashboard-resources"] },

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Pill } from "@/components/blaknet/badges";
 import { EmptyState } from "@/components/blaknet/section";
+import { YocoCheckout } from "@/components/blaknet/yoco-checkout";
 import { PLANS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import type { Plan, Subscription, SubscriptionStatus } from "@/lib/types";
@@ -55,13 +56,10 @@ export function PlanView() {
 
   const currentPlan: Plan = authUser?.plan ?? "STARTER";
   const status: SubscriptionStatus = subscription?.status ?? (currentPlan === "STARTER" ? "FREE" : "ACTIVE");
+  const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
 
   function upgradeTo(planName: string) {
-    toast({
-      title: "Yoco checkout is being prepared",
-      description: "A team member will reach out to complete your upgrade.",
-    });
-    void planName;
+    setCheckoutPlan(planName as Plan);
   }
 
   if (loading) {
@@ -230,7 +228,7 @@ export function PlanView() {
                     </Button>
                   ) : isHigher ? (
                     <Button
-                      onClick={() => upgradeTo(tier.name)}
+                      onClick={() => upgradeTo(tier.id)}
                       className={
                         tier.highlight
                           ? "w-full bg-cream text-ink hover:bg-cream/90"
@@ -303,6 +301,22 @@ export function PlanView() {
           </AccordionItem>
         </Accordion>
       </div>
+
+      {/* Yoco checkout dialog */}
+      {checkoutPlan && (
+        <YocoCheckout
+          plan={checkoutPlan}
+          open={!!checkoutPlan}
+          onOpenChange={(v) => !v && setCheckoutPlan(null)}
+          onSuccess={() => {
+            toast({ title: "Plan upgraded!", description: `You're now on the ${checkoutPlan} plan.` });
+            // refetch subscription
+            api<{ subscription: Subscription | null }>("/api/subscriptions").then((d) =>
+              setSubscription(d.subscription ?? null),
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

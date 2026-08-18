@@ -40,6 +40,7 @@ model User {
   verificationReq  VerificationRequest[]
   businessMembers  BusinessMember[]
   follows          BusinessFollow[]
+  enquiries        BusinessEnquiry[]
 }
 
 model Session {
@@ -123,6 +124,7 @@ model Business {
   events        Event[]
   members       BusinessMember[]
   follows       BusinessFollow[]
+  enquiries     BusinessEnquiry[]
   verifications VerificationRequest[]
 
   @@index([ownerId])
@@ -289,6 +291,26 @@ model Contact {
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+}
+
+model BusinessEnquiry {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // the person making the enquiry (optional — authed users get linked)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name        String
+  email       String
+  phone       String?
+  company     String?
+  message     String
+  enquiryType String   @default("general") // general | procurement | partnership | service | other
+  status      String   @default("new") // new | read | responded | archived
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
+  @@index([userId])
 }
 
 model Resource {
