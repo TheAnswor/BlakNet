@@ -60,6 +60,7 @@ function parseHash(hash: string): Route {
       if (b === "reviews") return { name: "admin-reviews" };
       if (b === "subscriptions") return { name: "admin-subscriptions" };
       if (b === "industries") return { name: "admin-industries" };
+      if (b === "reports") return { name: "admin-reports" };
       if (b === "events") return { name: "admin-events" };
       if (b === "newsfeed") return { name: "admin-newsfeed" };
       if (b === "resources") return { name: "admin-resources" };

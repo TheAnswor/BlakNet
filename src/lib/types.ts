@@ -212,4 +212,5 @@ export type Route =
   | { name: "admin-industries" }
   | { name: "admin-events" }
   | { name: "admin-newsfeed" }
-  | { name: "admin-resources" };
+  | { name: "admin-resources" }
+  | { name: "admin-reports" };

@@ -1188,3 +1188,97 @@ BlakNet was stable and mature — public (13 routes) + dashboard (13 routes) + a
 3. **Event editing** — let organizers edit/delete their own events.
 4. **Notification preferences persistence** — store channel toggles.
 5. **Search improvements** — full-text search or search-rank scoring.
+
+---
+
+## Task: REPORTS-MODERATION-EVENTEDIT
+- **Agent**: specialized sub agent (general-purpose)
+- **Scope**: Admin Reports analytics view, admin post moderation (delete), event edit/delete for organizers.
+
+### Work log
+1. Read worklog + existing admin/dashboard/newsfeed code to align with brand tokens, store hook, `api()` helper, toast, shadcn/ui primitives.
+2. **Task A — Admin Reports view** (`src/views/admin/reports.tsx` *new*):
+   - `AdminReportsView` fetches `GET /api/admin/reports`; loading skeleton, 403 forbidden state, error state.
+   - Header (`bg-ink-grain` hero) + 8 stat cards (Users/Building2/ShieldCheck/Calendar/Newspaper/BookOpen/Inbox/CreditCard) in a 4-col grid with staggered `animate-fade-in-up`.
+   - Growth section: 4 cards (newUsers30d / newBusinesses30d / newPosts30d / newEnquiries30d) with sage `TrendingUp` icon and "Last 30 days" label.
+   - Top businesses: 2 columns — Most viewed (Eye icon + views count) and Most followed (Heart icon + follower count); logos via Avatar/Fallback; clicking a name calls `navigate({ name: "business", slug })`.
+   - Distribution: 2 columns — Plan distribution (STARTER/VERIFIED/INTELLIGENCE) and Verification distribution (VERIFIED/NOT_VERIFIED/PENDING/REJECTED) using `bg-muted` track + `bg-sage` fill bars with counts + percentages.
+   - Recent registrations list (8 newest users): avatar initials, name, email, plan `Pill` (sage/ink/neutral tones), `timeAgo`.
+3. **Task B — Admin post moderation** (`src/views/admin/newsfeed.tsx` *edited*):
+   - Removed the "moderation tools coming soon" note.
+   - Each post card now has a destructive outline "Delete" button (Trash2 icon) in the top-right of the header row.
+   - Confirm Dialog ("Delete this post? This can't be undone.") with Cancel + destructive "Delete post" (shows `Loader2` spinner while pending).
+   - On confirm: optimistic removal from local list, `DELETE /api/posts/${id}`, toast "Post deleted" — on error, toast + refetch to revert.
+4. **Task C — Event edit/delete for organizers** (`src/views/dashboard/events.tsx` *edited*):
+   - Each event row now has an actions cluster (hover-reveal on `sm:`): View / Edit (Pencil) / Delete (Trash2, destructive outline).
+   - Edit dialog (`max-w-2xl`, scrollable): prefilled form with title, description, category `Select`, start/end `datetime-local` (ISO→local conversion via `toDatetimeLocal`), online `Switch` toggling between onlineUrl and location inputs, registration URL, capacity, `ImageUpload`. Validation mirrors the new-event form. Save → `PATCH /api/events/${slug}` → toast "Event updated" → refetch list. Cancel closes dialog.
+   - Delete confirm dialog → optimistic removal → `DELETE /api/events/${slug}` → toast "Event deleted"; on error toast + refetch to revert.
+   - EditEventDialog uses a `key={editNonce}` pattern (nonce bumps on every open) so each edit session starts from a fresh lazy-initialized form state — avoids the `react-hooks/set-state-in-effect` rule that firing `setForm` inside `useEffect` would violate.
+5. **Wiring** (`src/app/page.tsx` *edited*): imported `AdminReportsView` and added `{route.name === "admin-reports" && <AdminReportsView />}` inside `<AdminShell>`. (Admin shell NAV already had Reports wired by main agent.)
+6. Lint: initial run flagged (a) one `react-hooks/set-state-in-effect` error in events.tsx, (b) two unused `@next/next/no-img-element` disable comments. Fixed all three — refactored EditEventDialog to lazy `useState` initializer + `key` remount, removed the unneeded eslint-disable comments. Final `bun run lint` is clean (0 errors, 0 warnings). `bunx tsc --noEmit --skipLibCheck` reports zero issues in any of the touched files (pre-existing errors elsewhere are unrelated).
+7. Verified dev server boots (HTTP 200 on `/`, `GET /api/admin/reports` → 401 unauthenticated as expected for a guarded route).
+
+### Stage Summary
+- **Files created**: `src/views/admin/reports.tsx`.
+- **Files edited**: `src/views/admin/newsfeed.tsx`, `src/views/dashboard/events.tsx`, `src/app/page.tsx`.
+- **Lint**: clean (0/0).
+- **Type check**: no errors in touched files.
+- **All three features wired and ready**: admin Reports analytics, admin post moderation with optimistic delete, organizer event edit/delete with full form prefill + datetime-local conversion + image upload.
+- **Next actions for main agent**: (1) smoke-test Reports view as an admin user; (2) smoke-test delete on a post (admin or owner); (3) smoke-test event edit (verify datetime-local round-trips correctly through `PATCH /api/events/[slug]`); (4) smoke-test event delete.
+
+---
+Task ID: CRON-QA-8
+Agent: Z.ai Code (main) — web dev review cron round 8
+Task: QA, build admin Reports analytics, admin post moderation, event edit/delete.
+
+## Current Project Status Assessment
+BlakNet was stable and mature — all public (13 routes) + dashboard (14 routes incl. enquiries) + admin (10 active views) polished and functional (8/10 VLM). Enquiries + Yoco checkout working. This round focused on the last 3 priority gaps: admin Reports (analytics), admin post moderation, and event editing for organizers.
+
+## QA Performed
+- Dev server instability noted (process dies between rounds in this sandbox environment — not a code issue). Required multiple restarts.
+- API smoke tests: `GET /api/admin/reports` → 401 (correct, auth-guarded) ✓.
+- Lint: 0 errors, 0 warnings. TypeScript: 0 errors in new/edited files.
+- Browser testing limited by server instability; verified via lint + tsc + API status codes.
+
+## Completed Modifications
+
+### New Feature: Admin Reports (analytics dashboard, spec item #21 + #29)
+- **`GET /api/admin/reports`** endpoint: aggregates platform-wide analytics — summary counts (users, businesses, verified, events, posts, resources, enquiries, active subscriptions), 30-day growth metrics (new users/businesses/posts/enquiries), top 5 businesses by views + by followers, plan distribution, verification distribution, recent registrations. Admin-guarded.
+- **`AdminReportsView`** (`src/views/admin/reports.tsx`): premium analytics dashboard with:
+  - 8 summary stat cards (4 per row, staggered animations)
+  - 4 growth cards (30-day metrics with sage TrendingUp icons)
+  - Top businesses (2 columns: most viewed + most followed, clickable → profile)
+  - Distribution bars (2 columns: plan + verification, with percentage bars using bg-sage fills)
+  - Recent registrations list (8 newest users with avatar, plan pill, timeAgo)
+  - Loading skeleton, 403 forbidden, error states.
+- **New route**: `admin-reports` added to types + store + admin shell NAV (TrendingUp icon). Moved Reports from "Coming soon" to active. Admin sidebar now has **11 active nav items** with only Settings remaining as "coming soon".
+
+### New Feature: Admin Post Moderation (spec item #10)
+- **`DELETE /api/posts/[id]`** endpoint: deletes a post (owner or admin). 403 if not authorized.
+- **Admin newsfeed view** (`src/views/admin/newsfeed.tsx`) updated: each post card now has a destructive "Delete" button with a confirm Dialog. On confirm → `DELETE /api/posts/${id}` → optimistic removal → toast "Post deleted". Removed the "moderation tools coming soon" note.
+
+### New Feature: Event Edit/Delete for Organizers (spec item #11)
+- **`PATCH /api/events/[slug]`** endpoint: updates an event (organizer or admin). Supports all fields (title, description, category, dates, location/online, capacity, image). Re-slugs on title change.
+- **`DELETE /api/events/[slug]`** endpoint: deletes an event (organizer or admin).
+- **`GET /api/events/[slug]`** extended: now returns `organizer`, `business`, and `isOwner` fields.
+- **Dashboard events view** (`src/views/dashboard/events.tsx`) updated: each event row now has Edit + Delete actions (hover-reveal). Edit opens a Dialog (max-w-2xl) with a prefilled form (title, description, category, datetime-local start/end, online toggle, onlineUrl/location, registrationUrl, capacity, ImageUpload). Save → `PATCH /api/events/${slug}` → toast "Event updated" → refetch. Delete → confirm Dialog → `DELETE` → toast "Event deleted" → remove from list.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- TypeScript: 0 errors in all new/edited files (reports.tsx, newsfeed.tsx, events.tsx, reports API, posts DELETE API, events PATCH/DELETE API).
+- API: `GET /api/admin/reports` → 401 (auth-guarded) ✓.
+- Admin sidebar: 11 active nav items (was 10), only Settings remaining as "coming soon".
+- Browser testing limited by dev server instability — code verified via lint + tsc + API status codes.
+
+## Unresolved Issues / Risks
+- **Dev server instability**: the `next dev` process dies between rounds in this sandbox environment. Not a code bug — requires restart at the start of each round. The `nohup bun run dev &` approach works within a round but doesn't persist across cron invocations.
+- **Admin Settings** still "coming soon" (1 item) — platform configuration, feature flags.
+- **Notification preferences**: toggles still cosmetic.
+- **Avatar/image storage**: still data-uri in DB.
+
+## Priority Recommendations for Next Phase
+1. **Admin Settings view** — platform configuration, feature flags, email templates (the last "coming soon" admin item).
+2. **Notification preferences persistence** — store the 3 channel toggles on User/Profile.
+3. **Search improvements** — full-text search or search-rank scoring.
+4. **Business image uploads for creation** — currently only available in edit, not the multi-step create wizard.
+5. **Analytics for business owners** — the Intelligence plan promises live performance dashboards; scaffold per-business analytics (views, enquiries, follower growth).

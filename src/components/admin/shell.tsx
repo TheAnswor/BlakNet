@@ -45,6 +45,7 @@ const NAV: NavItem[] = [
   { label: "Events", icon: Calendar, route: { name: "admin-events" }, match: ["admin-events"] },
   { label: "Newsfeed", icon: Newspaper, route: { name: "admin-newsfeed" }, match: ["admin-newsfeed"] },
   { label: "Resources", icon: BookOpen, route: { name: "admin-resources" }, match: ["admin-resources"] },
+  { label: "Reports", icon: TrendingUp, route: { name: "admin-reports" }, match: ["admin-reports"] },
 ];
 
 interface SoonItem {
@@ -53,7 +54,6 @@ interface SoonItem {
 }
 
 const COMING_SOON: SoonItem[] = [
-  { label: "Reports", icon: TrendingUp },
   { label: "Settings", icon: Clock },
 ];
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,6 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatDate, formatNumber, initials, timeAgo } from "@/lib/format";
 import {
   Newspaper,
@@ -22,6 +31,8 @@ import {
   Eye,
   Building2,
   AlertCircle,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import type { Post } from "@/lib/types";
 
@@ -59,9 +70,12 @@ function typeLabel(type: string): string {
 }
 
 export function AdminNewsfeedView() {
+  const { toast } = useToast();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [type, setType] = useState<string>("all");
   const [reloadKey, setReloadKey] = useState(0);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +99,36 @@ export function AdminNewsfeedView() {
     if (type === "all") return state.items;
     return state.items.filter((p) => p.postType === type);
   }, [state, type]);
+
+  const deleteTarget =
+    state.kind === "ready"
+      ? state.items.find((p) => p.id === deleteId) ?? null
+      : null;
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+    setDeleting(true);
+    // Optimistic removal from local state
+    const removedId = deleteId;
+    setState((prev) =>
+      prev.kind === "ready"
+        ? { kind: "ready", items: prev.items.filter((p) => p.id !== removedId) }
+        : prev,
+    );
+    setDeleteId(null);
+    try {
+      await api(`/api/posts/${removedId}`, { method: "DELETE" });
+      toast({ title: "Post deleted" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not delete post.";
+      toast({ title: "Couldn't delete post", description: msg, variant: "destructive" });
+      // Revert — refetch
+      setReloadKey((k) => k + 1);
+      setState({ kind: "loading" });
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (state.kind === "loading") {
     return <NewsfeedSkeleton />;
@@ -143,11 +187,6 @@ export function AdminNewsfeedView() {
         </p>
       </div>
 
-      {/* note */}
-      <p className="text-xs italic text-muted-foreground">
-        Post moderation tools coming soon.
-      </p>
-
       {/* list */}
       {filtered.length === 0 ? (
         <EmptyState
@@ -158,15 +197,69 @@ export function AdminNewsfeedView() {
       ) : (
         <div className="space-y-3">
           {filtered.map((p, i) => (
-            <PostCard key={p.id} post={p} delayMs={i * 35} />
+            <PostCard
+              key={p.id}
+              post={p}
+              delayMs={i * 35}
+              onDelete={() => setDeleteId(p.id)}
+            />
           ))}
         </div>
       )}
+
+      <Dialog
+        open={!!deleteId}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this post?</DialogTitle>
+            <DialogDescription>
+              This can&apos;t be undone. The post will be removed from the public
+              newsfeed{deleteTarget?.title ? ` — \u201c${deleteTarget.title}\u201d` : ""}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteId(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Deleting…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-1.5 h-4 w-4" /> Delete post
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function PostCard({ post, delayMs }: { post: Post; delayMs: number }) {
+function PostCard({
+  post,
+  delayMs,
+  onDelete,
+}: {
+  post: Post;
+  delayMs: number;
+  onDelete: () => void;
+}) {
   const name =
     [post.author.firstName, post.author.lastName].filter(Boolean).join(" ") ||
     post.author.email.split("@")[0];
@@ -191,6 +284,15 @@ function PostCard({ post, delayMs }: { post: Post; delayMs: number }) {
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(post.createdAt)}</p>
         </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onDelete}
+          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          aria-label="Delete post"
+        >
+          <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+        </Button>
       </div>
 
       {post.title && (
