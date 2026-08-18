@@ -501,3 +501,99 @@ BlakNet MVP (Phase 1+2+trust loop) was complete and functional from prior rounds
 3. **Profile editing**: extend the edit pattern to user profiles (firstName/lastName/phone/bio/avatar) — the Settings tab currently toasts "coming soon".
 4. **Intelligence Hub scaffolding**: procurement alerts, competitor benchmarking (clearly marked "coming soon" per spec, but architecture should be laid out).
 5. **Search improvements**: PostgreSQL full-text search is noted as future; current SQLite `contains` works for MVP but consider adding a search-rank/score.
+
+---
+Task ID: STYLING-DASH
+Agent: general-purpose (Z.ai Code sub-agent)
+Task: Polish BlakNet dashboard overview (OverviewView) styling — 4 VLM-identified fixes, styling only.
+
+Work Log:
+- Read worklog + `src/views/dashboard/overview.tsx` + `src/app/globals.css` (verified `.card-lift`, `.card-soft`, `.btn-lift`, `.animate-fade-in-up` exist).
+- Fix 1 (greeting buttons): "Add a business" → primary `btn-lift bg-cream text-ink shadow-lg hover:bg-cream/90`. "Manage businesses" → ghost secondary `btn-lift border border-cream/20 bg-transparent text-cream/80 hover:bg-cream/10 hover:text-cream` (removed `variant="outline"` to avoid shadcn outline ring overriding the cream-ghost system). Both now share `btn-lift` for tactile micro-interaction cohesion.
+- Fix 2 (stat cards): removed `accent` flag from cards array; all 4 icon tiles now uniformly use `h-11 w-11 rounded-xl bg-ink text-cream shadow-sm` (was `h-10 w-10 rounded-lg` with sage variant on Notifications). Arrow `text-foreground/25` (was `/20`) with existing `group-hover:translate-x-0.5 group-hover:text-ink` preserved. Added `animate-fade-in-up` + inline `animationDelay: ${i*60}ms` for staggered mount. Kept `card-lift`.
+- Fix 3 (business section): container gained `card-soft` (alongside existing `rounded-xl border border-border bg-card`). Header "Add" ghost button gained `btn-lift`. BusinessRow button: `p-3` → `p-3.5`, `transition-colors` → `transition-all`, added `hover:shadow-sm`. `gap-4` already present.
+- Fix 4 (background contrast): added `card-soft` to subscription card + recent activity card (both already had `border border-border bg-card`). All four card groups (stat cards, businesses, subscription, recent activity) now share `bg-card + border border-border + soft shadow` so they sit "on" the cream background rather than floating with harsh edges. Stat cards retain `card-lift` for hover lift (its static shadow + hover lift).
+- Preserved all data-fetching, hooks, props, `BusinessRow` sub-component, imports, exports. STYLING ONLY.
+- Lint: `bun run lint` → 0 errors, 0 warnings (clean).
+- Dev server: healthy, compiles succeed, `/api/dashboard/stats` + `/api/businesses/owner` + `/api/notifications` all 200.
+
+Stage Summary:
+- Dashboard overview styling polished to brand-aligned cohesive system: unified icon treatment, consistent ghost/primary button system on the greeting card, all panels anchored with `card-soft` shadow + `border-border` for cohesion, staggered fade-in on stat cards, tactile `btn-lift` micro-interactions across all CTAs. No new features, no API/routing/state changes. Ready for VLM re-review.
+
+---
+Task ID: STYLING-EVENTS-RES
+Agent: general-purpose (Z.ai Code sub-agent)
+Task: Polish BlakNet Events + Resources public views styling — 4 + 3 VLM-identified fixes, styling only.
+
+Work Log:
+- Read worklog + `src/views/public/events.tsx` + `src/views/public/resources.tsx` + `globals.css` (verified `.card-lift`, `.card-soft`, `.bg-ink-grain`, `.animate-fade-in-up` exist) + `directory.tsx` for the `bg-sage/[0.08]` + `font-semibold` active filter pattern.
+
+### events.tsx (4 fixes)
+- Fix 1 (event card hierarchy): title switched `font-display text-lg` → `font-medium text-base leading-snug tracking-tight`. Metadata footer gained `border-t border-border pt-3` divider and text color moved from `text-muted-foreground` → `text-foreground/70` for legibility. `card-lift` was already present. Button gained `h-full` so cards stretch equal-height inside the new wrapper div. Each card now wrapped in `<div className="animate-fade-in-up" style={{ animationDelay: `${i*60}ms` }}>` for staggered mount.
+- Fix 2 (category filter hover): inactive pill classes changed `text-xs hover:bg-muted` → `text-sm hover:border-foreground/30 hover:bg-muted` (consistent rounded-full `px-3.5 py-1.5` kept). Active pill still `border-ink bg-ink text-cream`. Applied to both "All events" pill and the mapped category pills.
+- Fix 3 (date badge legibility): inverted the date badge from light-on-dark to dark-on-light backdrop. New container: `bg-ink/85 backdrop-blur-sm text-cream rounded-lg px-2 py-1.5 shadow-md`. Day → `font-display text-lg leading-none`. Month → `text-[10px] uppercase tracking-wide text-cream/70`.
+- Fix 4 (image/placeholder consistency): the entire top image area is now always `bg-ink-grain`. SVG data-uri → `<img>` with `object-contain p-8` (no crop). No-image → big branded initials placeholder rendered as `font-display text-5xl text-cream/30` via new `getInitials(title)` helper (first letters of first two words). Added a category icon overlay in the top-left corner (`h-9 w-9 rounded-lg bg-ink/40 text-cream backdrop-blur-sm`) so all cards share the same visual treatment.
+- Added `getInitials` helper. Preserved `CategoryIcon`/`categoryLabel`/`isSvgDataUri` helpers. STYLING ONLY — no API/state/routing changes.
+
+### resources.tsx (3 fixes)
+- Fix 1 (card visual variety): removed the heavy `aspect-[16/7] bg-ink-grain` image block entirely. Replaced with a compact horizontal header: small icon tile `h-10 w-10 rounded-lg bg-sage/12 text-sage` placed to the LEFT of the type/category pills, with Featured pill pushed `ml-auto` on the right. Kept title (`font-display text-lg`), description (`line-clamp-2 text-sm text-muted-foreground`), and footer (author · readMinutes · "Read →"). Button gained `h-full` for equal-height grid rows.
+- Fix 2 (filter sidebar grouping): FilterSidebar container gained `card-soft` + `lg:sticky lg:top-20` (removed the parent `<div className="sticky top-24">` wrapper so the sticky now lives on the sidebar itself). Added `Separator` between Filters header, Category group, Type group, and Featured-only toggle. Eyebrow labels "CATEGORY" / "TYPE" now `text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground`. Each row uses the directory pattern: `rounded-md px-2 py-1.5 hover:bg-muted/60` with active rows tinted `bg-sage/[0.08]` + label `font-semibold text-foreground` (was flat `gap-2 text-foreground/80`). Imported `Separator` from `@/components/ui/separator` and `cn` from `@/lib/utils`.
+- Fix 3 (semantic icons): TYPE_ICONS mapping updated — `template: Download → LayoutTemplate`, `checklist: CheckCircle2 → CheckSquare`. Other mappings unchanged (article: FileText, guide: BookOpen, video: PlayCircle, workshop: Users). Imports swapped accordingly. Each resource card now wrapped in `<div className="animate-fade-in-up" style={{ animationDelay: `${i*60}ms` }}>` for staggered mount (matching events pattern).
+- Preserved `'use client'`, all hooks/state, `useApp().navigate`, props, `Filters` interface, `MobileFilterPanel`, `EmptyState`/`SectionHeading` usage, exports. STYLING ONLY.
+
+Verification:
+- `bun run lint` → 0 errors, 0 warnings (clean).
+- Dev server: healthy. `✓ Compiled in 521ms / 267ms / 99ms / 183ms / 358ms / 867ms` and no error lines in dev.log.
+- HTTP probes: `GET /` 200, `GET /api/events` 200, `GET /api/resources` 200.
+
+Stage Summary:
+- Both Events and Resources views polished to a more cohesive, scannable, brand-aligned system. Events cards now have a consistent dark-grain image surface (SVG logo centered or branded initials placeholder), a dark backdrop-blur date badge, a divider above the metadata footer, and staggered fade-in. Resources cards dropped the heavy image block for a compact icon-tile + pills header, the sidebar became sticky + soft-shadow with separator-divided CATEGORY / TYPE / FEATURED groups mirroring the directory's active-row treatment, and resource-type icons are now semantically distinct (LayoutTemplate for templates, CheckSquare for checklists). No new features, no API/state/routing/prop changes. Ready for VLM re-review.
+
+---
+Task ID: CRON-QA-2
+Agent: Z.ai Code (main) — web dev review cron round 2
+Task: Assess status, QA via agent-browser + VLM, polish remaining views, add profile editing feature.
+
+## Current Project Status Assessment
+BlakNet was stable and functional from round 1 (home/directory/business-profile/newsfeed polished to 8.5-9/10, business editing + follow features working). This round focused on the UNPOLISHED views (pricing, events, dashboard overview, resources) + the most-requested functional gap (user profile editing, which was "coming soon").
+
+## QA Performed
+- VLM critical reviews of pricing (4 issues), events (4 issues), dashboard overview (4 issues), resources (3 issues), admin empty-state.
+- agent-browser golden-path: home, pricing, events, resources, dashboard, settings — all render.
+- Functional test: profile edit (fill fields → Save → "Profile updated" toast → sidebar name updates) ✓.
+- Lint: 0 errors, 0 warnings throughout.
+
+## Completed Modifications
+
+### Styling Polish (pricing + events + dashboard + resources)
+1. **Pricing** (rewritten): dark highlighted Verified card now uses `bg-ink-grain` + `ring-2 ring-sage` + shadow-2xl + scale-[1.04] + sage glow blur orb + "Most popular" badge (sage bg, ink text). CTA hierarchy fixed: highlighted card = `bg-cream text-ink` (primary), others = `bg-ink text-cream`. Feature list de-noised: removed grey X's, only shows included features with sage check-in-circle icons + "What's included" eyebrow. Bigger price (text-5xl). "Soon" badges now high-contrast (muted border + uppercase). FAQ items in individual cards (shadow-sm). Enterprise band refined. Glow header. VLM: 9/10.
+2. **Events** (via subagent STYLING-EVENTS-RES): card title hierarchy (font-medium text-base), border-t divider before metadata, metadata text-foreground/70, category pills hover states (hover:border-foreground/30 hover:bg-muted), date badge now `bg-ink/85 backdrop-blur-sm text-cream` with shadow-md for legibility, consistent `bg-ink-grain` image area with large font-display initials placeholder + category icon overlay top-left, staggered fade-in-up animations. VLM: 8/10.
+3. **Dashboard overview** (via subagent STYLING-DASH): greeting buttons unified (Add = primary cream with btn-lift + shadow, Manage = ghost secondary with cream border), all 4 stat card icons unified to `bg-ink text-cream h-11 w-11 rounded-xl shadow-sm`, arrow hover animation, business rows in card-soft container with hover:shadow-sm, all cards given `card-soft` + `border border-border` for cohesion (no harsh floating). Staggered fade-in-up on stat cards. VLM: 8/10.
+4. **Resources** (via subagent): removed heavy dark image block, compact icon tile (h-10 w-10 sage-tinted) left of type pills, filter sidebar in card-soft sticky container with Separator groups + uppercase eyebrows, active filter rows tinted, semantic type icons (LayoutTemplate, CheckSquare, etc.), staggered animations. VLM: 8/10.
+
+### New Feature: User Profile Editing (Settings page, fully functional)
+- **`GET /api/profile`** — returns user + Profile record (headline, location, website, linkedin).
+- **`PATCH /api/profile`** — validates + updates User (firstName, lastName, phone, bio, profileImage) + Profile (headline, location, website, linkededin) in a transaction. Caps bio at 500 chars, profileImage at 200KB (data-uri).
+- **Settings view rewritten**: expanded Profile form (firstName, lastName, headline, phone, location, website, linkedin, bio with char counter). Real Save → PATCH → toast "Profile updated" → `refreshAuth()` so the sidebar/avatar updates live. Loading state with Loader2 spinner.
+- **Avatar upload**: file input (hidden) triggered by a Camera button overlay on the avatar. Client-side `FileReader` converts image to data-uri → PATCH → live update. Validates type + size (≤2.5MB). Remove-avatar button. Ring-4 sage halo around avatar.
+- **Profile completion card**: checklist (headline, location, phone, bio, avatar, website/linkedin) with sage check / empty circle indicators.
+- Verified: edited Thandiwe's name + headline → saved → sidebar updated to "Thandiwe N. Mokoena" ✓.
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy, all APIs 200 (home, /api/profile 401 when unauthed ✓).
+- VLM ratings: Pricing 9/10, Events 8/10, Dashboard 8/10, Resources 8/10.
+- Functional: profile edit + save + live refresh ✓, avatar upload UI present ✓.
+
+## Unresolved Issues / Risks
+- **Avatar storage**: uses data-uri in DB (User.profileImage) — fine for MVP (<200KB) but not production-scale. A real object store (S3/Supabase Storage) should replace this later.
+- **Password change**: still stubbed ("coming soon") — requires a proper bcrypt verify + rehash endpoint.
+- **Notification preferences**: toggles are cosmetic (toast "Saved") — no persistence yet.
+- **Minor VLM items**: events cards could use hover lift (card-lift may not be applied to the button wrapper), dashboard section headers could be bolder, resource card text truncation consistency. All non-blocking.
+
+## Priority Recommendations for Next Phase
+1. **Yoco subscription checkout** (Phase 3 revenue path) — real payment integration + webhook → subscription status updates.
+2. **Password change endpoint** — bcrypt verify current + rehash new (closes the last "coming soon" stub in Settings).
+3. **Notification preferences persistence** — store the 3 channel toggles on User/Profile + a notifications settings table for granular types.
+4. **Image uploads for businesses** — extend the data-uri pattern to business logos/covers (or introduce a real storage bucket).
+5. **Hover-lift sweep** — ensure `card-lift` is on all clickable card wrappers (events, resources) for consistent tactile feedback.

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,15 +19,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { initials } from "@/lib/format";
-import { Mail, Shield, Bell, MessageCircle, LifeBuoy, User as UserIcon, AlertTriangle } from "lucide-react";
+import {
+  Mail,
+  Shield,
+  Bell,
+  MessageCircle,
+  LifeBuoy,
+  User as UserIcon,
+  AlertTriangle,
+  Camera,
+  Loader2,
+  Check,
+} from "lucide-react";
 
 interface ProfileForm {
   firstName: string;
   lastName: string;
   phone: string;
   bio: string;
+  headline: string;
+  location: string;
+  website: string;
+  linkedin: string;
 }
 
 interface PasswordForm {
@@ -35,16 +50,26 @@ interface PasswordForm {
   confirm: string;
 }
 
+const EMPTY_FORM: ProfileForm = {
+  firstName: "",
+  lastName: "",
+  phone: "",
+  bio: "",
+  headline: "",
+  location: "",
+  website: "",
+  linkedin: "",
+};
+
 export function SettingsView() {
-  const { authUser } = useApp();
+  const { authUser, refreshAuth } = useApp();
   const { toast } = useToast();
 
-  const [profile, setProfile] = useState<ProfileForm>(() => ({
-    firstName: authUser?.firstName ?? "",
-    lastName: authUser?.lastName ?? "",
-    phone: authUser?.phone ?? "",
-    bio: authUser?.bio ?? "",
-  }));
+  const [profile, setProfile] = useState<ProfileForm>(EMPTY_FORM);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [password, setPassword] = useState<PasswordForm>({
     current: "",
@@ -58,12 +83,121 @@ export function SettingsView() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  function saveProfile(e: React.FormEvent) {
+  // Load full profile (incl. Profile record) on mount
+  useEffect(() => {
+    if (!authUser) return;
+    api<{ user: { firstName: string | null; lastName: string | null; phone: string | null; bio: string | null; profileImage: string | null }; profile: { headline: string | null; location: string | null; website: string | null; linkedin: string | null } | null }>(
+      "/api/profile",
+    )
+      .then((d) => {
+        setProfile({
+          firstName: d.user?.firstName ?? "",
+          lastName: d.user?.lastName ?? "",
+          phone: d.user?.phone ?? "",
+          bio: d.user?.bio ?? "",
+          headline: d.profile?.headline ?? "",
+          location: d.profile?.location ?? "",
+          website: d.profile?.website ?? "",
+          linkedin: d.profile?.linkedin ?? "",
+        });
+        setAvatarUrl(d.user?.profileImage ?? null);
+      })
+      .catch(() => {
+        // fall back to authUser
+        setProfile({
+          firstName: authUser.firstName ?? "",
+          lastName: authUser.lastName ?? "",
+          phone: authUser.phone ?? "",
+          bio: authUser.bio ?? "",
+          headline: "",
+          location: "",
+          website: "",
+          linkedin: "",
+        });
+        setAvatarUrl(authUser.profileImage ?? null);
+      });
+  }, [authUser]);
+
+  async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
-    toast({
-      title: "Profile updates are coming soon",
-      description: "We're putting the finishing touches on profile editing.",
-    });
+    if (!profile.firstName.trim()) {
+      toast({ title: "First name is required", variant: "destructive" });
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      await api("/api/profile", {
+        method: "PATCH",
+        json: {
+          firstName: profile.firstName,
+          lastName: profile.lastName || undefined,
+          phone: profile.phone || undefined,
+          bio: profile.bio || undefined,
+          headline: profile.headline || undefined,
+          location: profile.location || undefined,
+          website: profile.website || undefined,
+          linkedin: profile.linkedin || undefined,
+        },
+      });
+      await refreshAuth();
+      toast({
+        title: "Profile updated",
+        description: "Your changes are live across BlakNet.",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save profile.";
+      toast({ title: "Could not save", description: msg, variant: "destructive" });
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2_500_000) {
+      toast({
+        title: "Image too large",
+        description: "Choose an image under 2.5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const dataUri = await fileToDataUri(file);
+      await api("/api/profile", {
+        method: "PATCH",
+        json: { profileImage: dataUri },
+      });
+      setAvatarUrl(dataUri);
+      await refreshAuth();
+      toast({ title: "Avatar updated" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed.";
+      toast({ title: "Could not upload", description: msg, variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function removeAvatar() {
+    setUploadingAvatar(true);
+    try {
+      await api("/api/profile", { method: "PATCH", json: { profileImage: null } });
+      setAvatarUrl(null);
+      await refreshAuth();
+      toast({ title: "Avatar removed" });
+    } catch {
+      toast({ title: "Could not remove", variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+    }
   }
 
   function savePassword(e: React.FormEvent) {
@@ -124,7 +258,7 @@ export function SettingsView() {
             <div className="lg:col-span-2">
               <form
                 onSubmit={saveProfile}
-                className="rounded-xl border border-border bg-card p-6"
+                className="card-soft rounded-xl border border-border bg-card p-6"
               >
                 <h2 className="font-display text-lg tracking-tight">Profile details</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -151,15 +285,59 @@ export function SettingsView() {
                     />
                   </div>
                 </div>
+
                 <div className="mt-4 space-y-1.5">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="headline">Headline</Label>
                   <Input
-                    id="phone"
-                    value={profile.phone}
-                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                    placeholder="+27 82 000 0000"
+                    id="headline"
+                    value={profile.headline}
+                    onChange={(e) => setProfile({ ...profile, headline: e.target.value })}
+                    placeholder="Founder at Lwazi Cloud Systems"
                   />
                 </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={profile.phone}
+                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      placeholder="+27 82 000 0000"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="location">Location</Label>
+                    <Input
+                      id="location"
+                      value={profile.location}
+                      onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                      placeholder="Sandton, Gauteng"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="website">Website</Label>
+                    <Input
+                      id="website"
+                      value={profile.website}
+                      onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                      placeholder="https://yourbusiness.co.za"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="linkedin">LinkedIn</Label>
+                    <Input
+                      id="linkedin"
+                      value={profile.linkedin}
+                      onChange={(e) => setProfile({ ...profile, linkedin: e.target.value })}
+                      placeholder="https://linkedin.com/in/you"
+                    />
+                  </div>
+                </div>
+
                 <div className="mt-4 space-y-1.5">
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
@@ -169,27 +347,101 @@ export function SettingsView() {
                     onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                     placeholder="A short note about who you are and what you're building."
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    {profile.bio.length}/500 characters
+                  </p>
                 </div>
 
-                <div className="mt-5 flex justify-end">
-                  <Button type="submit" className="bg-ink text-cream hover:bg-ink/90">
-                    Save changes
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    Changes appear on your profile and across BlakNet immediately.
+                  </p>
+                  <Button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="btn-lift bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90"
+                  >
+                    {savingProfile ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-1.5 h-4 w-4" /> Save changes
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-6">
-              <h3 className="font-display text-base tracking-tight">Avatar</h3>
-              <div className="mt-4 flex flex-col items-center gap-3 text-center">
-                <Avatar className="h-20 w-20">
-                  <AvatarFallback className="bg-ink font-display text-2xl text-cream">
-                    {authUser ? initials(authUser) : "?"}
-                  </AvatarFallback>
-                </Avatar>
-                <p className="text-xs text-muted-foreground">
-                  Upload coming soon — your initials are used for now.
-                </p>
+            <div className="space-y-6">
+              <div className="card-soft rounded-xl border border-border bg-card p-6">
+                <h3 className="font-display text-base tracking-tight">Avatar</h3>
+                <div className="mt-4 flex flex-col items-center gap-4 text-center">
+                  <div className="relative">
+                    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-ink ring-4 ring-sage/15">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt="Your avatar"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="font-display text-3xl text-cream">
+                          {authUser ? initials(authUser) : "?"}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-sage text-ink shadow-md transition-transform hover:scale-110 disabled:opacity-50"
+                      aria-label="Upload avatar"
+                    >
+                      {uploadingAvatar ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Click the camera to upload. JPG/PNG up to 2.5MB.
+                    </p>
+                    {avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={removeAvatar}
+                        disabled={uploadingAvatar}
+                        className="mt-1.5 text-xs text-destructive hover:underline"
+                      >
+                        Remove photo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card-soft rounded-xl border border-border bg-card p-6">
+                <h3 className="font-display text-base tracking-tight">Profile completion</h3>
+                <div className="mt-4 space-y-3 text-sm">
+                  <ProfileCheck done={!!profile.headline} label="Headline added" />
+                  <ProfileCheck done={!!profile.location} label="Location set" />
+                  <ProfileCheck done={!!profile.phone} label="Phone number" />
+                  <ProfileCheck done={!!profile.bio} label="Bio written" />
+                  <ProfileCheck done={!!avatarUrl} label="Avatar uploaded" />
+                  <ProfileCheck done={!!profile.website || !!profile.linkedin} label="Website or LinkedIn" />
+                </div>
               </div>
             </div>
           </div>
@@ -198,7 +450,7 @@ export function SettingsView() {
         {/* Account */}
         <TabsContent value="account" className="mt-6">
           <div className="space-y-6">
-            <div className="rounded-xl border border-border bg-card p-6">
+            <div className="card-soft rounded-xl border border-border bg-card p-6">
               <h2 className="font-display text-lg tracking-tight">Email address</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Your email is your login. Contact support to change it.
@@ -216,7 +468,7 @@ export function SettingsView() {
 
             <form
               onSubmit={savePassword}
-              className="rounded-xl border border-border bg-card p-6"
+              className="card-soft rounded-xl border border-border bg-card p-6"
             >
               <h2 className="font-display text-lg tracking-tight">Change password</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -297,7 +549,7 @@ export function SettingsView() {
 
         {/* Notifications */}
         <TabsContent value="notifications" className="mt-6">
-          <div className="rounded-xl border border-border bg-card p-6">
+          <div className="card-soft rounded-xl border border-border bg-card p-6">
             <h2 className="font-display text-lg tracking-tight">Notification channels</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Choose how BlakNet reaches you. Granular notification preferences are coming soon.
@@ -369,6 +621,23 @@ export function SettingsView() {
   );
 }
 
+function ProfileCheck({ done, label }: { done: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className={
+          done
+            ? "flex h-5 w-5 items-center justify-center rounded-full bg-sage/15 text-sage"
+            : "flex h-5 w-5 items-center justify-center rounded-full border border-border text-muted-foreground/40"
+        }
+      >
+        {done ? <Check className="h-3 w-3" /> : null}
+      </span>
+      <span className={done ? "text-foreground/80" : "text-muted-foreground"}>{label}</span>
+    </div>
+  );
+}
+
 function NotifRow({
   icon: Icon,
   title,
@@ -396,4 +665,14 @@ function NotifRow({
       <Switch checked={checked} onCheckedChange={onChange} aria-label={title} />
     </div>
   );
+}
+
+// Convert a File to a data URI (client-side, no server upload needed for MVP)
+function fileToDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read file."));
+    reader.readAsDataURL(file);
+  });
 }

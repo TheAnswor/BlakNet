@@ -58,6 +58,15 @@ function isSvgDataUri(url: string): boolean {
   return url.startsWith("data:image/svg");
 }
 
+function getInitials(title: string): string {
+  return title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function EventCard({ event }: { event: BlakEvent }) {
   const { navigate } = useApp();
   const md = monthDay(event.startDate);
@@ -65,19 +74,32 @@ function EventCard({ event }: { event: BlakEvent }) {
     <button
       type="button"
       onClick={() => navigate({ name: "event", slug: event.slug })}
-      className="card-lift group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:border-foreground/25 hover:shadow-lg"
+      className="card-lift group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:border-foreground/25 hover:shadow-lg"
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden">
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-ink-grain">
         {event.imageUrl && isSvgDataUri(event.imageUrl) ? (
-          <img src={event.imageUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={event.imageUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-contain p-8"
+          />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink-grain text-cream">
-            <CategoryIcon category={event.category} className="h-9 w-9 text-cream/70" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-display text-5xl text-cream/30">
+              {getInitials(event.title)}
+            </span>
           </div>
         )}
-        <div className="absolute right-3 top-3 rounded-md bg-cream px-2 py-1 text-center text-ink shadow-sm">
-          <div className="font-display text-base leading-none">{md.day}</div>
-          <div className="text-[10px] font-medium uppercase tracking-wider text-ink/70">{md.month}</div>
+        {/* Category icon overlay */}
+        <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-lg bg-ink/40 text-cream backdrop-blur-sm">
+          <CategoryIcon category={event.category} className="h-5 w-5" />
+        </div>
+        {/* Date badge */}
+        <div className="absolute right-3 top-3 rounded-lg bg-ink/85 px-2 py-1.5 text-center text-cream shadow-md backdrop-blur-sm">
+          <div className="font-display text-lg leading-none">{md.day}</div>
+          <div className="text-[10px] uppercase tracking-wide text-cream/70">
+            {md.month}
+          </div>
         </div>
       </div>
 
@@ -85,12 +107,12 @@ function EventCard({ event }: { event: BlakEvent }) {
         <Pill tone="sage" className="self-start">
           {categoryLabel(event.category)}
         </Pill>
-        <h3 className="mt-2 line-clamp-2 font-display text-lg leading-snug tracking-tight">
+        <h3 className="mt-2 line-clamp-2 font-medium text-base leading-snug tracking-tight">
           {event.title}
         </h3>
         <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{event.description}</p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3 text-xs text-foreground/70">
           <span className="inline-flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5" />
             {formatDate(event.startDate, { day: "numeric", month: "short" })}
@@ -216,10 +238,10 @@ export function EventsView() {
               type="button"
               onClick={() => setActive("all")}
               className={
-                "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors " +
+                "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors " +
                 (active === "all"
                   ? "border-ink bg-ink text-cream"
-                  : "border-border bg-card text-foreground/70 hover:bg-muted")
+                  : "border-border bg-card text-foreground/70 hover:border-foreground/30 hover:bg-muted")
               }
             >
               All events
@@ -232,10 +254,10 @@ export function EventsView() {
                   type="button"
                   onClick={() => toggleCategory(c.value)}
                   className={
-                    "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors " +
+                    "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors " +
                     (isActive
                       ? "border-ink bg-ink text-cream"
-                      : "border-border bg-card text-foreground/70 hover:bg-muted")
+                      : "border-border bg-card text-foreground/70 hover:border-foreground/30 hover:bg-muted")
                   }
                 >
                   {c.label}
@@ -272,8 +294,14 @@ export function EventsView() {
             />
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((e) => (
-                <EventCard key={e.id} event={e} />
+              {events.map((e, i) => (
+                <div
+                  key={e.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <EventCard event={e} />
+                </div>
               ))}
             </div>
           )}

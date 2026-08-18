@@ -75,7 +75,7 @@ export function OverviewView() {
     { label: "My Businesses", value: stats?.businesses ?? 0, icon: Building2, route: "dashboard-businesses" as const },
     { label: "Network Contacts", value: stats?.contacts ?? 0, icon: Users, route: "dashboard-network" as const },
     { label: "Upcoming Events", value: stats?.upcomingEvents ?? 0, icon: Calendar, route: "dashboard-events" as const },
-    { label: "Notifications", value: stats?.unreadNotifications ?? 0, icon: Bell, route: "dashboard-notifications" as const, accent: true },
+    { label: "Notifications", value: stats?.unreadNotifications ?? 0, icon: Bell, route: "dashboard-notifications" as const },
   ];
 
   return (
@@ -97,16 +97,15 @@ export function OverviewView() {
             <Button
               size="sm"
               onClick={() => navigate({ name: "dashboard-business-new" })}
-              className="bg-cream text-ink hover:bg-cream/90"
+              className="btn-lift bg-cream text-ink shadow-lg hover:bg-cream/90"
             >
               <Plus className="mr-1.5 h-4 w-4" /> Add a business
             </Button>
             {biz.length > 0 && (
               <Button
                 size="sm"
-                variant="outline"
                 onClick={() => navigate({ name: "dashboard-businesses" })}
-                className="border-cream/20 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
+                className="btn-lift border border-cream/20 bg-transparent text-cream/80 hover:bg-cream/10 hover:text-cream"
               >
                 Manage businesses <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
@@ -117,17 +116,18 @@ export function OverviewView() {
 
       {/* stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((c) => (
+        {cards.map((c, i) => (
           <button
             key={c.label}
             onClick={() => navigate({ name: c.route })}
-            className="card-lift group rounded-xl border border-border bg-card p-5 text-left"
+            style={{ animationDelay: `${i * 60}ms` }}
+            className="card-lift animate-fade-in-up group rounded-xl border border-border bg-card p-5 text-left"
           >
             <div className="flex items-center justify-between">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", c.accent ? "bg-sage/15 text-sage" : "bg-ink text-cream")}>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink text-cream shadow-sm">
                 <c.icon className="h-5 w-5" />
               </div>
-              <ArrowRight className="h-4 w-4 text-foreground/20 transition-all group-hover:translate-x-0.5 group-hover:text-ink" />
+              <ArrowRight className="h-4 w-4 text-foreground/25 transition-all group-hover:translate-x-0.5 group-hover:text-ink" />
             </div>
             <div className="mt-4 font-display text-3xl tracking-tight">{c.value}</div>
             <div className="text-sm text-muted-foreground">{c.label}</div>
@@ -138,11 +138,11 @@ export function OverviewView() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* my businesses */}
         <div className="lg:col-span-2">
-          <div className="rounded-xl border border-border bg-card">
+          <div className="card-soft rounded-xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="font-display text-lg tracking-tight">My Businesses</h2>
               {biz.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => navigate({ name: "dashboard-business-new" })}>
+                <Button variant="ghost" size="sm" onClick={() => navigate({ name: "dashboard-business-new" })} className="btn-lift">
                   <Plus className="mr-1 h-4 w-4" /> Add
                 </Button>
               )}
@@ -154,7 +154,7 @@ export function OverviewView() {
                   title="You haven't added a business yet."
                   description="Create your free business profile to get discovered, collect reviews and start building your network."
                   action={
-                    <Button onClick={() => navigate({ name: "dashboard-business-new" })} className="bg-ink text-cream hover:bg-ink/90">
+                    <Button onClick={() => navigate({ name: "dashboard-business-new" })} className="btn-lift bg-ink text-cream hover:bg-ink/90">
                       <Plus className="mr-1.5 h-4 w-4" /> Add your business
                     </Button>
                   }
@@ -172,7 +172,7 @@ export function OverviewView() {
 
         {/* plan card */}
         <div className="space-y-6">
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="card-soft rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg tracking-tight">Subscription</h2>
               <Pill tone={authUser?.plan === "STARTER" ? "neutral" : "sage"}>
@@ -189,7 +189,7 @@ export function OverviewView() {
             <div className="mt-4">
               <Button
                 onClick={() => navigate({ name: "dashboard-plan" })}
-                className="w-full bg-ink text-cream hover:bg-ink/90"
+                className="btn-lift w-full bg-ink text-cream hover:bg-ink/90"
               >
                 <TrendingUp className="mr-1.5 h-4 w-4" /> {authUser?.plan === "INTELLIGENCE" ? "Manage plan" : "Upgrade plan"}
               </Button>
@@ -197,7 +197,7 @@ export function OverviewView() {
           </div>
 
           {/* recent notifications */}
-          <div className="rounded-xl border border-border bg-card">
+          <div className="card-soft rounded-xl border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="font-display text-lg tracking-tight">Recent Activity</h2>
               <Button variant="ghost" size="sm" onClick={() => navigate({ name: "dashboard-notifications" })}>
@@ -236,7 +236,7 @@ function BusinessRow({ b, onOpen }: { b: Business; onOpen: () => void }) {
   return (
     <button
       onClick={onOpen}
-      className="flex w-full items-center gap-4 rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/40"
+      className="flex w-full items-center gap-4 rounded-lg border border-border bg-background p-3.5 text-left transition-all hover:border-foreground/20 hover:bg-muted/40 hover:shadow-sm"
     >
       {b.logoUrl ? (
          

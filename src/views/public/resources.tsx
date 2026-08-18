@@ -13,13 +13,15 @@ import {
 } from "@/components/ui/collapsible";
 import { Pill } from "@/components/blaknet/badges";
 import { SectionHeading, EmptyState } from "@/components/blaknet/section";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { RESOURCE_CATEGORIES, RESOURCE_TYPES } from "@/lib/constants";
 import type { Resource } from "@/lib/types";
 import {
   FileText,
   BookOpen,
-  Download,
-  CheckCircle2,
+  LayoutTemplate,
+  CheckSquare,
   PlayCircle,
   Users,
   ArrowRight,
@@ -33,8 +35,8 @@ import {
 const TYPE_ICONS: Record<string, typeof FileText> = {
   article: FileText,
   guide: BookOpen,
-  template: Download,
-  checklist: CheckCircle2,
+  template: LayoutTemplate,
+  checklist: CheckSquare,
   video: PlayCircle,
   workshop: Users,
 };
@@ -64,22 +66,24 @@ function ResourceCard({ resource }: { resource: Resource }) {
     <button
       type="button"
       onClick={() => navigate({ name: "resource", slug: resource.slug })}
-      className="card-lift group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:border-foreground/25 hover:shadow-lg"
+      className="card-lift group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:border-foreground/25 hover:shadow-lg"
     >
-      <div className="relative flex aspect-[16/7] items-center justify-center bg-ink-grain text-cream/80">
-        <TypeIcon type={resource.resourceType} className="h-8 w-8" />
-        {resource.featured && (
-          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-cream px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ink">
-            <Sparkles className="h-3 w-3" /> Featured
-          </span>
-        )}
-      </div>
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-center gap-2">
-          <Pill tone="sage">{typeLabel(resource.resourceType)}</Pill>
-          <Pill tone="neutral">{categoryLabel(resource.category)}</Pill>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sage/12 text-sage">
+            <TypeIcon type={resource.resourceType} className="h-5 w-5" />
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Pill tone="sage">{typeLabel(resource.resourceType)}</Pill>
+            <Pill tone="neutral">{categoryLabel(resource.category)}</Pill>
+          </div>
+          {resource.featured && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-cream px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ink">
+              <Sparkles className="h-3 w-3" /> Featured
+            </span>
+          )}
         </div>
-        <h3 className="mt-2 line-clamp-2 font-display text-lg leading-snug tracking-tight">
+        <h3 className="mt-3 line-clamp-2 font-display text-lg leading-snug tracking-tight">
           {resource.title}
         </h3>
         <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{resource.description}</p>
@@ -159,7 +163,7 @@ function FilterSidebar({
     filters.categories.length + filters.types.length + (filters.featured ? 1 : 0);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="card-soft rounded-xl border border-border bg-card p-5 lg:sticky lg:top-20">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-sage">
           <Filter className="h-3.5 w-3.5" />
@@ -179,49 +183,93 @@ function FilterSidebar({
         )}
       </div>
 
-      <div className="mt-5">
-        <h3 className="text-sm font-semibold text-foreground">Category</h3>
-        <div className="mt-2 space-y-2">
+      <Separator className="mt-4" />
+
+      {/* CATEGORY group */}
+      <div className="mt-4">
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Category
+        </h3>
+        <div className="space-y-1">
           {RESOURCE_CATEGORIES.map((c) => {
             const checked = filters.categories.includes(c.value);
             return (
               <label
                 key={c.value}
-                className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80"
+                className={cn(
+                  "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60",
+                  checked && "bg-sage/[0.08]",
+                )}
               >
                 <Checkbox checked={checked} onCheckedChange={() => toggleCategory(c.value)} />
-                {c.label}
+                <span
+                  className={cn(
+                    "text-foreground/80",
+                    checked && "font-semibold text-foreground",
+                  )}
+                >
+                  {c.label}
+                </span>
               </label>
             );
           })}
         </div>
       </div>
 
-      <div className="mt-5 border-t border-border pt-5">
-        <h3 className="text-sm font-semibold text-foreground">Type</h3>
-        <div className="mt-2 space-y-2">
+      <Separator className="mt-4" />
+
+      {/* TYPE group */}
+      <div className="mt-4">
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Type
+        </h3>
+        <div className="space-y-1">
           {RESOURCE_TYPES.map((t) => {
             const checked = filters.types.includes(t.value);
             return (
               <label
                 key={t.value}
-                className="flex cursor-pointer items-center gap-2 text-sm text-foreground/80"
+                className={cn(
+                  "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60",
+                  checked && "bg-sage/[0.08]",
+                )}
               >
                 <Checkbox checked={checked} onCheckedChange={() => toggleType(t.value)} />
-                {t.label}
+                <span
+                  className={cn(
+                    "text-foreground/80",
+                    checked && "font-semibold text-foreground",
+                  )}
+                >
+                  {t.label}
+                </span>
               </label>
             );
           })}
         </div>
       </div>
 
-      <div className="mt-5 border-t border-border pt-5">
-        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+      <Separator className="mt-4" />
+
+      <div className="mt-4">
+        <label
+          className={cn(
+            "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60",
+            filters.featured && "bg-sage/[0.08]",
+          )}
+        >
           <Checkbox
             checked={filters.featured}
             onCheckedChange={(v) => setFilters({ ...filters, featured: v === true })}
           />
-          Featured only
+          <span
+            className={cn(
+              "text-foreground/80",
+              filters.featured && "font-semibold text-foreground",
+            )}
+          >
+            Featured only
+          </span>
         </label>
       </div>
     </div>
@@ -341,13 +389,11 @@ export function ResourcesView() {
 
           <div className="flex gap-8">
             <aside className="hidden w-64 shrink-0 lg:block">
-              <div className="sticky top-24">
-                <FilterSidebar
-                  filters={filters}
-                  setFilters={setFilters}
-                  onClear={clearFilters}
-                />
-              </div>
+              <FilterSidebar
+                filters={filters}
+                setFilters={setFilters}
+                onClear={clearFilters}
+              />
             </aside>
 
             <div className="min-w-0 flex-1">
@@ -387,8 +433,14 @@ export function ResourcesView() {
                     </p>
                   </div>
                   <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {filtered.map((r) => (
-                      <ResourceCard key={r.id} resource={r} />
+                    {filtered.map((r, i) => (
+                      <div
+                        key={r.id}
+                        className="animate-fade-in-up"
+                        style={{ animationDelay: `${i * 60}ms` }}
+                      >
+                        <ResourceCard resource={r} />
+                      </div>
                     ))}
                   </div>
                 </>

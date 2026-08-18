@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { Check, X, Sparkles, ArrowRight, ShieldCheck, Building2 } from "lucide-react";
+import { Check, Sparkles, ArrowRight, ShieldCheck, Building2 } from "lucide-react";
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -62,8 +61,11 @@ export function PricingView() {
   return (
     <div className="flex flex-col">
       {/* ===== HEADER ===== */}
-      <section className="bg-cream-grain">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+      <section className="relative overflow-hidden bg-cream-grain">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-0 h-64 w-[600px] -translate-x-1/2 rounded-full bg-sage/15 blur-[90px]" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
           <SectionHeading
             align="center"
             eyebrow="Pricing"
@@ -86,27 +88,31 @@ export function PricingView() {
               const isHighlight = plan.highlight;
               const isCurrent = authUser?.plan === plan.id;
               const isCurrentStarter = plan.id === "STARTER" && isCurrent;
+              const includedFeatures = plan.features.filter((f) => f.included);
 
               return (
                 <div
                   key={plan.id}
                   className={
                     isHighlight
-                      ? "relative rounded-2xl bg-ink text-cream ring-2 ring-sage shadow-xl lg:scale-[1.03] lg:-my-1"
-                      : "relative rounded-2xl border border-border bg-card text-card-foreground"
+                      ? "card-lift relative flex flex-col overflow-hidden rounded-2xl bg-ink-grain text-cream ring-2 ring-sage shadow-2xl shadow-ink/30 lg:scale-[1.04]"
+                      : "card-lift relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm"
                   }
                 >
                   {isHighlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Pill tone="cream" className="shadow-md">
-                        <Sparkles className="h-3 w-3" /> Most popular
-                      </Pill>
-                    </div>
+                    <>
+                      <div className="pointer-events-none absolute -top-16 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-sage/25 blur-[60px]" />
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sage px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink shadow-md">
+                          <Sparkles className="h-3 w-3" /> Most popular
+                        </span>
+                      </div>
+                    </>
                   )}
 
-                  <div className="flex h-full flex-col p-6 sm:p-7">
+                  <div className="relative flex h-full flex-col p-6 sm:p-8">
                     {/* Header */}
-                    <div>
+                    <div className="flex items-center justify-between">
                       <h3
                         className={
                           isHighlight
@@ -116,24 +122,29 @@ export function PricingView() {
                       >
                         {plan.name}
                       </h3>
-                      <p
-                        className={
-                          isHighlight
-                            ? "mt-1 text-sm text-cream/65"
-                            : "mt-1 text-sm text-muted-foreground"
-                        }
-                      >
-                        {plan.tagline}
-                      </p>
+                      {isCurrent && (
+                        <Pill tone={isHighlight ? "cream" : "sage"} className="shrink-0">
+                          Current
+                        </Pill>
+                      )}
                     </div>
+                    <p
+                      className={
+                        isHighlight
+                          ? "mt-1 text-sm text-cream/60"
+                          : "mt-1 text-sm text-muted-foreground"
+                      }
+                    >
+                      {plan.tagline}
+                    </p>
 
                     {/* Price */}
                     <div className="mt-6 flex items-baseline gap-1.5">
                       <span
                         className={
                           isHighlight
-                            ? "font-display text-4xl tracking-tight text-cream"
-                            : "font-display text-4xl tracking-tight text-ink"
+                            ? "font-display text-5xl tracking-tight text-cream"
+                            : "font-display text-5xl tracking-tight text-ink"
                         }
                       >
                         {plan.price}
@@ -141,7 +152,7 @@ export function PricingView() {
                       <span
                         className={
                           isHighlight
-                            ? "text-xs text-cream/55"
+                            ? "text-xs text-cream/50"
                             : "text-xs text-muted-foreground"
                         }
                       >
@@ -157,8 +168,8 @@ export function PricingView() {
                         onClick={() => handleCta(plan)}
                         className={
                           isHighlight
-                            ? "w-full bg-cream text-ink hover:bg-cream/90"
-                            : "w-full bg-ink text-cream hover:bg-ink/90"
+                            ? "btn-lift w-full bg-cream text-ink shadow-lg shadow-cream/10 hover:bg-white hover:shadow-cream/20"
+                            : "btn-lift w-full bg-ink text-cream shadow-md shadow-ink/15 hover:bg-ink/90"
                         }
                       >
                         {isCurrentStarter ? "Current plan" : plan.cta}
@@ -177,48 +188,43 @@ export function PricingView() {
                       }
                     />
 
-                    {/* Features */}
+                    {/* Features — only show included ones (reduces noise) */}
                     <ul className="flex flex-1 flex-col gap-3">
-                      {plan.features.map((f) => (
-                        <li
-                          key={f.label}
-                          className="flex items-start justify-between gap-2"
-                        >
-                          <span className="flex items-start gap-2.5">
-                            {f.included ? (
-                              <Check
-                                className={
-                                  isHighlight
-                                    ? "mt-0.5 h-4 w-4 shrink-0 text-sage"
-                                    : "mt-0.5 h-4 w-4 shrink-0 text-sage"
-                                }
-                              />
-                            ) : (
-                              <X
-                                className={
-                                  isHighlight
-                                    ? "mt-0.5 h-4 w-4 shrink-0 text-cream/30"
-                                    : "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40"
-                                }
-                              />
-                            )}
-                            <span
-                              className={
-                                isHighlight
-                                  ? "text-sm leading-snug text-cream/85"
-                                  : "text-sm leading-snug text-foreground/80"
-                              }
-                            >
-                              {f.label}
-                            </span>
+                      <li
+                        className={
+                          isHighlight
+                            ? "mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-cream/45"
+                            : "mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
+                        }
+                      >
+                        What's included
+                      </li>
+                      {includedFeatures.map((f) => (
+                        <li key={f.label} className="flex items-start gap-2.5">
+                          <span
+                            className={
+                              isHighlight
+                                ? "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sage/20"
+                                : "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sage/15"
+                            }
+                          >
+                            <Check className="h-3 w-3 text-sage" />
+                          </span>
+                          <span className="flex-1 text-sm leading-relaxed text-foreground/80">
+                            {f.label}
                           </span>
                           {f.badge && (
-                            <Pill
-                              tone={isHighlight ? "sage" : "neutral"}
-                              className="shrink-0"
+                            <span
+                              className={
+                                f.badge === "Soon"
+                                  ? "shrink-0 rounded-full border border-muted-foreground/30 bg-muted-foreground/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                                  : isHighlight
+                                    ? "shrink-0 rounded-full bg-sage/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sage"
+                                    : "shrink-0 rounded-full bg-sage/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sage"
+                              }
                             >
                               {f.badge}
-                            </Pill>
+                            </span>
                           )}
                         </li>
                       ))}
@@ -242,8 +248,8 @@ export function PricingView() {
           />
           <Accordion type="single" collapsible className="mt-10 w-full">
             {FAQS.map((f) => (
-              <AccordionItem key={f.q} value={f.q}>
-                <AccordionTrigger className="font-display text-lg text-ink">
+              <AccordionItem key={f.q} value={f.q} className="rounded-xl border border-border bg-card px-5 mb-3 shadow-sm">
+                <AccordionTrigger className="font-display text-lg text-ink hover:no-underline">
                   {f.q}
                 </AccordionTrigger>
                 <AccordionContent className="text-[15px] leading-relaxed text-muted-foreground">
@@ -258,9 +264,9 @@ export function PricingView() {
       {/* ===== ENTERPRISE BAND ===== */}
       <section className="bg-background">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-6 rounded-2xl border border-border bg-card px-6 py-8 text-center sm:flex-row sm:text-left">
+          <div className="flex flex-col items-center justify-between gap-6 rounded-2xl border border-border bg-card px-6 py-8 text-center shadow-sm sm:flex-row sm:text-left">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ink text-cream">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-cream shadow-md">
                 <Building2 className="h-5 w-5" />
               </div>
               <div>
@@ -281,7 +287,7 @@ export function PricingView() {
                   description: "Email hello@blaknet.co.za — we'll be in touch.",
                 })
               }
-              className="shrink-0 border-ink/20 bg-transparent text-ink hover:bg-ink/5"
+              className="btn-lift shrink-0 border-ink/20 bg-transparent text-ink hover:bg-ink/5"
             >
               <ShieldCheck className="mr-1.5 h-4 w-4" /> Talk to us
             </Button>
