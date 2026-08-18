@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**Active Nav Items:** 10\n- Overview, Verification, Users, Businesses, Reviews, Subscriptions, Industries, Events, Newsfeed\n\n**Coming Soon Items:** 0\n(No items are visually disabled or labeled as coming soon)\n\n**Completeness Rating:** 8/10\nCovers core entity management (Users/Businesses) and content moderation (Reviews/Newsfeed). Lacks advanced system config (Settings/Security), analytics deep-dives, or audit logs typically found in mature admin suites.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1787017934,
+  "id": "202608180952125445b34629bf4b40",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202608180952125445b34629bf4b40",
+  "usage": {
+    "completion_tokens": 105,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 921,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 1026
+  }
+}

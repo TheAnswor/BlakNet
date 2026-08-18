@@ -49,6 +49,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ slug: 
     annualRevenue,
     cipcNumber,
     bbbeeLevel,
+    logoUrl,
+    coverUrl,
     services,
     products,
   } = body;
@@ -80,6 +82,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ slug: 
   if (annualRevenue !== undefined) data.annualRevenue = annualRevenue || null;
   if (cipcNumber !== undefined) data.cipcNumber = cipcNumber?.trim() || null;
   if (bbbeeLevel !== undefined) data.bbbeeLevel = bbbeeLevel || null;
+  if (logoUrl !== undefined) {
+    const v = String(logoUrl);
+    if (v.length > 200000) {
+      return NextResponse.json({ error: "Logo image is too large." }, { status: 400 });
+    }
+    data.logoUrl = v || null;
+  }
+  if (coverUrl !== undefined) {
+    const v = String(coverUrl);
+    if (v.length > 300000) {
+      return NextResponse.json({ error: "Cover image is too large." }, { status: 400 });
+    }
+    data.coverUrl = v || null;
+  }
 
   // recompute profile completion
   const future = {
@@ -99,6 +115,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ slug: 
     annualRevenue: data.annualRevenue,
     cipcNumber: data.cipcNumber,
     bbbeeLevel: data.bbbeeLevel,
+    logoUrl: data.logoUrl,
   };
   const fields = Object.values(future);
   const filled = fields.filter((f) => f !== undefined && f !== null && f !== "").length;

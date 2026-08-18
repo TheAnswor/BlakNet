@@ -34,6 +34,9 @@ import { AdminBusinessesView } from "@/views/admin/businesses";
 import { AdminReviewsView } from "@/views/admin/reviews";
 import { AdminSubscriptionsView } from "@/views/admin/subscriptions";
 import { AdminIndustriesView } from "@/views/admin/industries";
+import { AdminEventsView } from "@/views/admin/events";
+import { AdminNewsfeedView } from "@/views/admin/newsfeed";
+import { AdminResourcesView } from "@/views/admin/resources";
 import { ComingSoon } from "@/views/public/coming-soon";
 
 // Routes that show the public header + footer (marketing surface)
@@ -135,6 +138,9 @@ export default function Page() {
         {route.name === "admin-reviews" && <AdminReviewsView />}
         {route.name === "admin-subscriptions" && <AdminSubscriptionsView />}
         {route.name === "admin-industries" && <AdminIndustriesView />}
+        {route.name === "admin-events" && <AdminEventsView />}
+        {route.name === "admin-newsfeed" && <AdminNewsfeedView />}
+        {route.name === "admin-resources" && <AdminResourcesView />}
       </AdminShell>
     );
   }

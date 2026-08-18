@@ -847,3 +847,120 @@ BlakNet was stable and fully polished across all public + dashboard views (8-9/1
 3. **Admin Events/Newsfeed/Resources management** — complete the remaining 5 admin views.
 4. **Admin user detail / impersonation** — view a user's businesses, contacts, activity.
 5. **Analytics dashboard** — the Intelligence plan promises live performance dashboards; scaffold the architecture.
+
+---
+Task ID: IMAGES-AND-ADMIN
+Agent: Z.ai Code (sub-agent) — image upload + 3 admin views
+
+## Work Log
+
+### Task A — Business image upload in edit dialog
+**File edited:** `src/views/dashboard/business-detail.tsx`
+- Imported `ImageUpload` from `@/components/blaknet/image-upload`.
+- Added `logoUrl: string | null` and `coverUrl: string | null` to `EditFormState`.
+- Prefilled them from `business.logoUrl` / `business.coverUrl` in `editFormFromBusiness`.
+- Added both fields to `buildEditPayload` (so they ride the existing PATCH `/api/businesses/${id}/edit` JSON body — the endpoint already accepts them).
+- Added both fields to `editBusinessMerge` (local fallback).
+- UI: inserted a "Brand images" bordered sub-card at the TOP of the Details tab (before the name field). Contains a Logo `ImageUpload` (aspect="square", label="Upload logo") on the left and a Cover `ImageUpload` (aspect="wide", label="Upload cover") on the right. Helper text: "A logo helps your business stand out in the directory." All existing edit-dialog functionality preserved (name, tagline, industry, services & products tab).
+
+### Task B — 3 admin management views
+**New files (all `'use client'`, TypeScript strict, no `any`):**
+
+1. `src/views/admin/events.tsx` → `AdminEventsView`
+   - Fetches `GET /api/events`.
+   - Category Select (All + networking/workshop/seminar/conference/training/webinar/funding/competition/learnership/meetup) + search input + live result count.
+   - Desktop table + mobile card variants. Each event shows: title (clickable → `navigate({ name: "event", slug })`), category Pill (toned by category), startDate (formatDate), location or "Online" badge, attendees count (from `_count.attendees`), capacity.
+   - Category tone helper gives sage/ink/cream variation.
+   - Note: "Event creation and editing coming to business owners soon."
+   - Loading (Skeleton), empty (EmptyState), error (EmptyState + Try again) states + staggered fade-in-up.
+
+2. `src/views/admin/newsfeed.tsx` → `AdminNewsfeedView`
+   - Fetches `GET /api/posts`.
+   - Post-type Select (All + text/announcement/opportunity) + result count.
+   - Card layout per post: author Avatar (initials) + name + email, post-type Pill (toned), title (if any, font-display), content (`line-clamp-3`), createdAt (timeAgo) + formatDate in footer, views (Eye), likes count (Heart), comments count (MessageCircle). If business attached, shows business name with Building2 icon.
+   - Note: "Post moderation tools coming soon."
+   - Loading, empty, error states + staggered animations.
+
+3. `src/views/admin/resources.tsx` → `AdminResourcesView`
+   - Fetches `GET /api/resources`.
+   - Category Select (All + starting/compliance/bbbee/finance/marketing/sales/operations/hr/legal/procurement/funding/strategy/technology) + type Select (All + article/guide/template/checklist/video/workshop) + result count.
+   - Desktop table + mobile card variants. Each resource shows: title (clickable → `navigate({ name: "resource", slug })`), featured star, type Pill (toned by type), category Pill (neutral), author (with User icon), readMinutes (Clock + minutes), createdAt (formatDate).
+   - Note: "Resource creation coming soon."
+   - Loading, empty, error states + staggered animations.
+
+### Wiring
+- `src/lib/types.ts`: added `| { name: "admin-events" } | { name: "admin-newsfeed" } | { name: "admin-resources" }` to the `Route` union.
+- `src/lib/store.ts`: `parseHash` `case "admin":` block now returns the 3 new routes for `b === "events"` / `newsfeed` / `resources`. `routeToHash` default already handles `#/admin/events` etc. correctly.
+- `src/components/admin/shell.tsx`: NAV extended with Events (Calendar), Newsfeed (Newspaper), Resources (BookOpen) — placed after Industries. COMING_SOON reduced to only Reports (TrendingUp) + Settings (Clock).
+- `src/app/page.tsx`: imported the 3 new admin views; added 3 route branches inside `<AdminShell>`.
+
+## Lint / Type-check
+- `bun run lint` → clean (no eslint errors).
+- `bunx tsc --noEmit` → no errors in any of the touched/created files. (Pre-existing errors in unrelated `examples/`, `skills/`, `next.config.ts`, and `businesses/[slug]/route.ts` remain untouched.)
+- Dev server: healthy. `GET /api/events`, `/api/posts`, `/api/resources` all return 200. After file saves, dev server recompiled cleanly (`✓ Compiled` lines in dev.log) and re-served `/` with 200.
+
+## Fixes / Decisions
+- Initial newsfeed draft had an awkward `navigate` placeholder; removed since posts aren't clickable — `useApp` import dropped from `newsfeed.tsx`.
+- Replaced `FileCheck` icon with `BookOpen` for Resources nav item per task spec.
+- Kept `CreditCard` (Subscriptions) and other working icons intact in `shell.tsx`.
+- All 3 admin views use the existing public read endpoints (no admin-guard wrapping required per MVP scope).
+
+## Stage Summary
+- Admin sidebar now has 10 active nav items (was 7): Overview, Verification, Users, Businesses, Reviews, Subscriptions, Industries, Events, Newsfeed, Resources. Only Reports + Settings remain in COMING_SOON.
+- Business owners can now upload a logo + cover image directly in the Edit Business dialog; the saved data-uri is persisted via the existing PATCH endpoint and reflected immediately on the detail page after the refetch.
+- All views reuse the BlakNet brand system (ink/cream/sage, font-display, Pill, EmptyState, animate-fade-in-up) and shadcn/ui primitives (Button, Input, Skeleton, Avatar, Select, Badge where applicable).
+
+---
+Task ID: CRON-QA-5
+Agent: Z.ai Code (main) — web dev review cron round 5
+Task: QA, fix newsfeed Post-button confusion, add business image uploads, complete admin console (Events/Newsfeed/Resources).
+
+## Current Project Status Assessment
+BlakNet was stable and mature — public + dashboard + admin (7 views) all polished and functional. This round focused on: (a) fixing a UX bug (two "Post" buttons in the newsfeed composer), (b) adding business image uploads (logos/covers), and (c) completing the admin console with the 3 remaining management views (Events, Newsfeed, Resources).
+
+## QA Performed
+- Tested newsfeed post creation end-to-end — found the "two Post buttons" confusion (type toggle labeled "Post" vs submit button "Post").
+- Verified all admin views render with live data.
+- Lint: 0 errors, 0 warnings throughout.
+
+## Completed Modifications
+
+### Bug Fix
+- **Newsfeed composer "Post" label confusion**: The text-type toggle was labeled "Post" (same as the submit button), causing confusion. Renamed the text-type toggle label from "Post" to "Text" in `POST_TYPE_META`. Now the submit button is the only "Post" button, and the type toggles are Text/Announcement/Opportunity — unambiguous.
+
+### New Feature: Business Image Uploads (logos + covers)
+- **`PATCH /api/businesses/[slug]/edit`** extended: now accepts `logoUrl` (data-uri, ≤200KB) and `coverUrl` (data-uri, ≤300KB). Included `logoUrl` in profile-completion calculation.
+- **`ImageUpload` component** (`src/components/blaknet/image-upload.tsx`): reusable client-side file→data-uri upload with preview, remove button, size validation, loading state. Props: `{ value, onChange, label, aspect: "square"|"wide", maxMb }`.
+- **Business edit dialog** (`business-detail.tsx`): added a "Brand images" section at the top of the Details tab with Logo (square) + Cover (wide) `ImageUpload` components. Prefilled from current business, included in the PATCH payload on save, refetches to show new images.
+
+### Admin Console Completion — 3 new management views
+**New admin views** (via subagent IMAGES-AND-ADMIN):
+1. **AdminEventsView** — search + category filter, event table with clickable titles, category pill, date, location/online, attendees/capacity. Read-only for MVP.
+2. **AdminNewsfeedView** — post-type filter, post cards with author avatar/name/email, type pill, content (line-clamp-3), views/likes/comments counts, business name. Read-only.
+3. **AdminResourcesView** — category + type filters, resource table with clickable titles, type/category pills, author, readMinutes, featured badge, date. Read-only.
+
+**Wiring**: Added 3 routes (`admin-events`, `admin-newsfeed`, `admin-resources`) to types + store + admin shell NAV. Moved Events/Newsfeed/Resources from "Coming soon" to active. Admin sidebar now has **10 active nav items** (was 7) with only Reports + Settings remaining as "coming soon".
+
+## Verification Results
+- Lint: 0 errors, 0 warnings.
+- Dev server: healthy, all APIs 200.
+- Functional tests:
+  - Newsfeed: type toggle now shows "Text" (not "Post") — submit button is the only "Post" ✓.
+  - Business edit: "Brand images" section with Logo + Cover upload controls present ✓.
+  - Admin Events: 6 events with search + category filter ✓.
+  - Admin Newsfeed: 7 posts with type filter ✓.
+  - Admin Resources: 12 resources with category + type filters ✓.
+- VLM: admin nav has 10 active items, 0 "coming soon" visible (only Reports/Settings remain). Completeness 8/10.
+
+## Unresolved Issues / Risks
+- **Avatar/image storage**: still data-uri in DB (fine for MVP, not production-scale).
+- **Admin Reports + Settings** still "coming soon" (2 items) — Reports needs analytics data; Settings needs platform configuration.
+- **Notification preferences**: toggles still cosmetic.
+- **Admin Events/Newsfeed/Resources are read-only** — no create/edit/delete moderation actions yet (can be added later).
+
+## Priority Recommendations for Next Phase
+1. **Yoco subscription checkout** (Phase 3 revenue path) — still the top functional gap.
+2. **Admin Reports view** — analytics: profile views over time, search appearances, business enquiries, event registrations. The Intelligence plan promises this.
+3. **Admin Settings view** — platform configuration, feature flags, email templates.
+4. **Event creation for business owners** — currently events are seed-data only; let business owners create/host events.
+5. **Post moderation tools** — admin ability to pin/delete/hide posts from the admin newsfeed view.

@@ -38,7 +38,7 @@ const POST_TYPE_META: Record<
   PostType,
   { label: string; tone: "neutral" | "ink" | "sage" | "cream"; icon: typeof Megaphone }
 > = {
-  text: { label: "Post", tone: "neutral", icon: Newspaper },
+  text: { label: "Text", tone: "neutral", icon: Newspaper },
   announcement: { label: "Announcement", tone: "sage", icon: Megaphone },
   opportunity: { label: "Opportunity", tone: "ink", icon: Briefcase },
   image: { label: "Image", tone: "cream", icon: ImageIcon },

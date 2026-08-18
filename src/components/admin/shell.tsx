@@ -16,8 +16,7 @@ import {
   Users,
   Calendar,
   Newspaper,
-  FileCheck,
-  CheckCircle2,
+  BookOpen,
   CreditCard,
   TrendingUp,
   Clock,
@@ -43,6 +42,9 @@ const NAV: NavItem[] = [
   { label: "Reviews", icon: Star, route: { name: "admin-reviews" }, match: ["admin-reviews"] },
   { label: "Subscriptions", icon: CreditCard, route: { name: "admin-subscriptions" }, match: ["admin-subscriptions"] },
   { label: "Industries", icon: Sparkles, route: { name: "admin-industries" }, match: ["admin-industries"] },
+  { label: "Events", icon: Calendar, route: { name: "admin-events" }, match: ["admin-events"] },
+  { label: "Newsfeed", icon: Newspaper, route: { name: "admin-newsfeed" }, match: ["admin-newsfeed"] },
+  { label: "Resources", icon: BookOpen, route: { name: "admin-resources" }, match: ["admin-resources"] },
 ];
 
 interface SoonItem {
@@ -51,9 +53,6 @@ interface SoonItem {
 }
 
 const COMING_SOON: SoonItem[] = [
-  { label: "Events", icon: Calendar },
-  { label: "Newsfeed", icon: Newspaper },
-  { label: "Resources", icon: FileCheck },
   { label: "Reports", icon: TrendingUp },
   { label: "Settings", icon: Clock },
 ];

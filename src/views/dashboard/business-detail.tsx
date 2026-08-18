@@ -40,6 +40,7 @@ import {
   BBBEE_LEVELS,
 } from "@/lib/constants";
 import { EmptyState } from "@/components/blaknet/section";
+import { ImageUpload } from "@/components/blaknet/image-upload";
 import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
 import type { Business, Industry, VerificationStatus } from "@/lib/types";
 import { formatDate, formatNumber, provinceCity, verificationLabel } from "@/lib/format";
@@ -97,6 +98,8 @@ interface EditFormState {
   annualRevenue: string;
   cipcNumber: string;
   bbbeeLevel: string;
+  logoUrl: string | null;
+  coverUrl: string | null;
   services: string[];
   products: string[];
 }
@@ -120,6 +123,8 @@ function editFormFromBusiness(b: Business): EditFormState {
     annualRevenue: b.annualRevenue ?? "",
     cipcNumber: b.cipcNumber ?? "",
     bbbeeLevel: b.bbbeeLevel ?? "",
+    logoUrl: b.logoUrl ?? null,
+    coverUrl: b.coverUrl ?? null,
     services: (b.services ?? []).map((s) => s.name),
     products: (b.products ?? []).map((p) => p.name),
   };
@@ -144,6 +149,8 @@ function buildEditPayload(form: EditFormState) {
     annualRevenue: form.annualRevenue || undefined,
     cipcNumber: form.cipcNumber.trim() || undefined,
     bbbeeLevel: form.bbbeeLevel || undefined,
+    logoUrl: form.logoUrl,
+    coverUrl: form.coverUrl,
     services: form.services,
     products: form.products,
   };
@@ -170,6 +177,8 @@ function editBusinessMerge(form: EditFormState): Partial<Business> {
     annualRevenue: form.annualRevenue || null,
     cipcNumber: form.cipcNumber.trim() || null,
     bbbeeLevel: form.bbbeeLevel || null,
+    logoUrl: form.logoUrl,
+    coverUrl: form.coverUrl,
     services: form.services.map((name, i) => ({ id: `local-${i}-${name}`, name })),
     products: form.products.map((name, i) => ({ id: `local-${i}-${name}`, name })),
   };
@@ -853,6 +862,36 @@ function EditBusinessDialog({
 
           {/* ---------- Details tab ---------- */}
           <TabsContent value="details" className="space-y-4 pt-2">
+            {/* Brand images */}
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <div className="mb-3">
+                <p className="text-sm font-medium">Brand images</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  A logo helps your business stand out in the directory.
+                </p>
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="space-y-1.5">
+                  <Label>Logo</Label>
+                  <ImageUpload
+                    value={form.logoUrl}
+                    onChange={(v) => update("logoUrl", v)}
+                    aspect="square"
+                    label="Upload logo"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:flex-1">
+                  <Label>Cover</Label>
+                  <ImageUpload
+                    value={form.coverUrl}
+                    onChange={(v) => update("coverUrl", v)}
+                    aspect="wide"
+                    label="Upload cover"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="edit-name">
                 Business name <span className="text-destructive">*</span>

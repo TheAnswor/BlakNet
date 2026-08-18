@@ -1,0 +1,1253 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+     4→import { useApp } from "@/lib/store";
+     5→import { api } from "@/lib/api";
+     6→import { useToast } from "@/hooks/use-toast";
+     7→import { Button } from "@/components/ui/button";
+     8→import { Input } from "@/components/ui/input";
+     9→import { Textarea } from "@/components/ui/textarea";
+    10→import { Label } from "@/components/ui/label";
+    11→import { Skeleton } from "@/components/ui/skeleton";
+    12→import { Separator } from "@/components/ui/separator";
+    13→import { Progress } from "@/components/ui/progress";
+    14→import {
+    15→  Select,
+    16→  SelectTrigger,
+    17→  SelectValue,
+    18→  SelectContent,
+    19→  SelectItem,
+    20→} from "@/components/ui/select";
+    21→import {
+    22→  Dialog,
+    23→  DialogContent,
+    24→  DialogHeader,
+    25→  DialogTitle,
+    26→  DialogDescription,
+    27→  DialogFooter,
+    28→} from "@/components/ui/dialog";
+    29→import {
+    30→  Tabs,
+    31→  TabsList,
+    32→  TabsTrigger,
+    33→  TabsContent,
+    34→} from "@/components/ui/tabs";
+    35→import {
+    36→  PROVINCES,
+    37→  BUSINESS_SIZES,
+    38→  EMPLOYEE_RANGES,
+    39→  REVENUE_RANGES,
+    40→  BBBEE_LEVELS,
+    41→} from "@/lib/constants";
+    42→import { EmptyState } from "@/components/blaknet/section";
+    43→import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
+    44→import type { Business, Industry, VerificationStatus } from "@/lib/types";
+    45→import { formatDate, formatNumber, provinceCity, verificationLabel } from "@/lib/format";
+    46→import {
+    47→  ArrowLeft,
+    48→  ArrowRight,
+    49→  Building2,
+    50→  ShieldCheck,
+    51→  CheckCircle2,
+    52→  Clock,
+    53→  Eye,
+    54→  Globe,
+    55→  Mail,
+    56→  Phone,
+    57→  MessageCircle,
+    58→  MapPin,
+    59→  Calendar,
+    60→  Pencil,
+    61→  Sparkles,
+    62→  AlertCircle,
+    63→  Briefcase,
+    64→  Package,
+    65→  X,
+    66→  Plus,
+    67→  Save,
+    68→  Loader2,
+    69→} from "lucide-react";
+    70→
+    71→const VERIFICATION_TYPES = [
+    72→  { value: "CIPC", label: "CIPC registration" },
+    73→  { value: "B-BBEE", label: "B-BBEE certificate" },
+    74→  { value: "TAX", label: "Tax clearance" },
+    75→  { value: "CERTIFICATION", label: "Industry certification" },
+    76→];
+    77→
+    78→const SERVICE_SUGGESTIONS = ["Accounting", "Consulting", "Design", "Logistics"];
+    79→const PRODUCT_SUGGESTIONS = ["Report", "Template", "Kit", "Subscription"];
+    80→
+    81→// ---------- edit form ----------
+    82→interface EditFormState {
+    83→  name: string;
+    84→  tagline: string;
+    85→  description: string;
+    86→  industryId: string;
+    87→  province: string;
+    88→  city: string;
+    89→  address: string;
+    90→  website: string;
+    91→  email: string;
+    92→  phone: string;
+    93→  whatsapp: string;
+    94→  businessSize: string;
+    95→  yearFounded: string;
+    96→  employeeCount: string;
+    97→  annualRevenue: string;
+    98→  cipcNumber: string;
+    99→  bbbeeLevel: string;
+   100→  services: string[];
+   101→  products: string[];
+   102→}
+   103→
+   104→function editFormFromBusiness(b: Business): EditFormState {
+   105→  return {
+   106→    name: b.name ?? "",
+   107→    tagline: b.tagline ?? "",
+   108→    description: b.description ?? "",
+   109→    industryId: b.industryId ?? "",
+   110→    province: b.province ?? "",
+   111→    city: b.city ?? "",
+   112→    address: b.address ?? "",
+   113→    website: b.website ?? "",
+   114→    email: b.email ?? "",
+   115→    phone: b.phone ?? "",
+   116→    whatsapp: b.whatsapp ?? "",
+   117→    businessSize: b.businessSize ?? "",
+   118→    yearFounded: b.yearFounded != null ? String(b.yearFounded) : "",
+   119→    employeeCount: b.employeeCount ?? "",
+   120→    annualRevenue: b.annualRevenue ?? "",
+   121→    cipcNumber: b.cipcNumber ?? "",
+   122→    bbbeeLevel: b.bbbeeLevel ?? "",
+   123→    services: (b.services ?? []).map((s) => s.name),
+   124→    products: (b.products ?? []).map((p) => p.name),
+   125→  };
+   126→}
+   127→
+   128→function buildEditPayload(form: EditFormState) {
+   129→  return {
+   130→    name: form.name.trim(),
+   131→    tagline: form.tagline.trim() || undefined,
+   132→    description: form.description.trim() || undefined,
+   133→    industryId: form.industryId || undefined,
+   134→    province: form.province || undefined,
+   135→    city: form.city.trim() || undefined,
+   136→    address: form.address.trim() || undefined,
+   137→    website: form.website.trim() || undefined,
+   138→    email: form.email.trim() || undefined,
+   139→    phone: form.phone.trim() || undefined,
+   140→    whatsapp: form.whatsapp.trim() || undefined,
+   141→    businessSize: form.businessSize || undefined,
+   142→    yearFounded: form.yearFounded ? Number(form.yearFounded) : undefined,
+   143→    employeeCount: form.employeeCount || undefined,
+   144→    annualRevenue: form.annualRevenue || undefined,
+   145→    cipcNumber: form.cipcNumber.trim() || undefined,
+   146→    bbbeeLevel: form.bbbeeLevel || undefined,
+   147→    services: form.services,
+   148→    products: form.products,
+   149→  };
+   150→}
+   151→
+   152→// Best-effort local merge of edited fields back onto the business object
+   153→// (used only if the PATCH response doesn't include a fresh business payload).
+   154→function editBusinessMerge(form: EditFormState): Partial<Business> {
+   155→  return {
+   156→    name: form.name.trim(),
+   157→    tagline: form.tagline.trim() || null,
+   158→    description: form.description.trim() || null,
+   159→    industryId: form.industryId || null,
+   160→    province: form.province || null,
+   161→    city: form.city.trim() || null,
+   162→    address: form.address.trim() || null,
+   163→    website: form.website.trim() || null,
+   164→    email: form.email.trim() || null,
+   165→    phone: form.phone.trim() || null,
+   166→    whatsapp: form.whatsapp.trim() || null,
+   167→    businessSize: form.businessSize || null,
+   168→    yearFounded: form.yearFounded ? Number(form.yearFounded) : null,
+   169→    employeeCount: form.employeeCount || null,
+   170→    annualRevenue: form.annualRevenue || null,
+   171→    cipcNumber: form.cipcNumber.trim() || null,
+   172→    bbbeeLevel: form.bbbeeLevel || null,
+   173→    services: form.services.map((name, i) => ({ id: `local-${i}-${name}`, name })),
+   174→    products: form.products.map((name, i) => ({ id: `local-${i}-${name}`, name })),
+   175→  };
+   176→}
+   177→
+   178→export function BusinessDetailView() {
+   179→  const route = useApp((s) => s.route);
+   180→  if (route.name !== "dashboard-business") return null;
+   181→  // `key` ensures the inner component fully remounts on id change → all
+   182→  // state (loading, notFound, verify form) resets cleanly between businesses.
+   183→  return <BusinessDetail key={route.id} id={route.id} />;
+   184→}
+   185→
+   186→function BusinessDetail({ id }: { id: string }) {
+   187→  const navigate = useApp((s) => s.navigate);
+   188→  const { toast } = useToast();
+   189→
+   190→  const [business, setBusiness] = useState<Business | null>(null);
+   191→  const [loading, setLoading] = useState(true);
+   192→  const [notFound, setNotFound] = useState(false);
+   193→  const [showVerifyForm, setShowVerifyForm] = useState(false);
+   194→
+   195→  // edit dialog state
+   196→  const [editOpen, setEditOpen] = useState(false);
+   197→  const [editForm, setEditForm] = useState<EditFormState | null>(null);
+   198→  const [industries, setIndustries] = useState<Industry[]>([]);
+   199→  const [saving, setSaving] = useState(false);
+   200→
+   201→  // verification form state
+   202→  const [verificationType, setVerificationType] = useState("CIPC");
+   203→  const [documentUrl, setDocumentUrl] = useState("");
+   204→  const [notes, setNotes] = useState("");
+   205→  const [submitting, setSubmitting] = useState(false);
+   206→
+   207→  // Load industries (for the edit dialog's industry Select).
+   208→  useEffect(() => {
+   209→    let cancelled = false;
+   210→    api<{ industries: Industry[] }>("/api/industries")
+   211→      .then((d) => {
+   212→        if (cancelled) return;
+   213→        setIndustries(d.industries ?? []);
+   214→      })
+   215→      .catch(() => {
+   216→        /* silent — Select just stays empty */
+   217→      });
+   218→    return () => {
+   219→      cancelled = true;
+   220→    };
+   221→  }, []);
+   222→
+   223→  useEffect(() => {
+   224→    let cancelled = false;
+   225→    api<{ items: Business[] }>("/api/businesses/owner")
+   226→      .then((d) => {
+   227→        if (cancelled) return;
+   228→        const found = (d.items ?? []).find((b) => b.id === id);
+   229→        if (found) setBusiness(found);
+   230→        else setNotFound(true);
+   231→      })
+   232→      .catch(() => {
+   233→        if (cancelled) return;
+   234→        setNotFound(true);
+   235→      })
+   236→      .finally(() => {
+   237→        if (!cancelled) setLoading(false);
+   238→      });
+   239→    return () => {
+   240→      cancelled = true;
+   241→    };
+   242→  }, [id]);
+   243→
+   244→  const refetch = () => {
+   245→    api<{ items: Business[] }>("/api/businesses/owner")
+   246→      .then((d) => {
+   247→        const found = (d.items ?? []).find((b) => b.id === id);
+   248→        if (found) setBusiness(found);
+   249→      })
+   250→      .catch(() => {
+   251→        /* silent */
+   252→      });
+   253→  };
+   254→
+   255→  const openEdit = () => {
+   256→    if (!business) return;
+   257→    setEditForm(editFormFromBusiness(business));
+   258→    setEditOpen(true);
+   259→  };
+   260→
+   261→  const handleEditSave = async () => {
+   262→    if (!business || !editForm) return;
+   263→    if (!editForm.name.trim()) {
+   264→      toast({ title: "Business name is required.", variant: "destructive" });
+   265→      return;
+   266→    }
+   267→    setSaving(true);
+   268→    try {
+   269→      const payload = buildEditPayload(editForm);
+   270→      const res = await api<{ business: Business }>(
+   271→        `/api/businesses/${encodeURIComponent(business.id)}/edit`,
+   272→        { method: "PATCH", json: payload },
+   273→      );
+   274→      setBusiness(res.business ?? { ...business, ...editBusinessMerge(editForm) });
+   275→      setEditOpen(false);
+   276→      setEditForm(null);
+   277→      toast({ title: "Business updated", description: "Your changes are live." });
+   278→      refetch();
+   279→    } catch (err) {
+   280→      const message = err instanceof Error ? err.message : "Could not save changes.";
+   281→      toast({
+   282→        title: "Couldn't save changes",
+   283→        description: message,
+   284→        variant: "destructive",
+   285→      });
+   286→    } finally {
+   287→      setSaving(false);
+   288→    }
+   289→  };
+   290→
+   291→  const handleVerifySubmit = async (e: FormEvent) => {
+   292→    e.preventDefault();
+   293→    if (!business) return;
+   294→    setSubmitting(true);
+   295→    try {
+   296→      await api("/api/verification", {
+   297→        method: "POST",
+   298→        json: {
+   299→          businessId: business.id,
+   300→          verificationType,
+   301→          notes: notes.trim() || undefined,
+   302→          documentUrl: documentUrl.trim() || undefined,
+   303→        },
+   304→      });
+   305→      toast({
+   306→        title: "Verification submitted",
+   307→        description: "We'll review within 2 business days.",
+   308→      });
+   309→      setShowVerifyForm(false);
+   310→      setNotes("");
+   311→      setDocumentUrl("");
+   312→      refetch();
+   313→    } catch (err) {
+   314→      const message = err instanceof Error ? err.message : "Could not submit verification.";
+   315→      toast({
+   316→        title: "Couldn't submit verification",
+   317→        description: message,
+   318→        variant: "destructive",
+   319→      });
+   320→    } finally {
+   321→      setSubmitting(false);
+   322→    }
+   323→  };
+   324→
+   325→  if (loading) {
+   326→    return (
+   327→      <div className="space-y-6">
+   328→        <Skeleton className="h-8 w-40 rounded-md" />
+   329→        <Skeleton className="h-36 w-full rounded-2xl" />
+   330→        <div className="grid gap-6 lg:grid-cols-3">
+   331→          <Skeleton className="lg:col-span-2 h-72 rounded-xl" />
+   332→          <Skeleton className="h-72 rounded-xl" />
+   333→        </div>
+   334→      </div>
+   335→    );
+   336→  }
+   337→
+   338→  if (notFound || !business) {
+   339→    return (
+   340→      <EmptyState
+   341→        icon={Building2}
+   342→        title="Business not found"
+   343→        description="This business doesn't exist, or you don't have access to manage it."
+   344→        action={
+   345→          <Button onClick={() => navigate({ name: "dashboard-businesses" })} className="bg-ink text-cream hover:bg-ink/90">
+   346→            <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to my businesses
+   347→          </Button>
+   348→        }
+   349→      />
+   350→    );
+   351→  }
+   352→
+   353→  const status = business.verificationStatus;
+   354→  const isVerified = status === "VERIFIED";
+   355→  const isPending = status === "PENDING";
+   356→
+   357→  return (
+   358→    <div className="space-y-6">
+   359→      <button
+   360→        onClick={() => navigate({ name: "dashboard-businesses" })}
+   361→        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ink"
+   362→      >
+   363→        <ArrowLeft className="h-4 w-4" /> Back to my businesses
+   364→      </button>
+   365→
+   366→      {/* Header card */}
+   367→      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+   368→        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+   369→          {business.logoUrl ? (
+   370→            <img
+   371→              src={business.logoUrl}
+   372→              alt={business.name}
+   373→              className="h-16 w-16 shrink-0 rounded-xl object-cover"
+   374→            />
+   375→          ) : (
+   376→            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-ink font-display text-2xl text-cream">
+   377→              {business.name[0]?.toUpperCase() ?? "?"}
+   378→            </div>
+   379→          )}
+   380→
+   381→          <div className="min-w-0 flex-1">
+   382→            <div className="flex flex-wrap items-center gap-2">
+   383→              <h1 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">
+   384→                {business.name}
+   385→              </h1>
+   386→              <VerifiedBadge status={status} size="md" />
+   387→              <BBBEEBadge level={business.bbbeeLevel} />
+   388→              {business.featured && <Pill tone="cream">Featured</Pill>}
+   389→            </div>
+   390→
+   391→            {business.tagline && (
+   392→              <p className="mt-1 text-sm text-muted-foreground">{business.tagline}</p>
+   393→            )}
+   394→
+   395→            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+   396→              <span className="inline-flex items-center gap-1">
+   397→                <MapPin className="h-3 w-3" /> {provinceCity(business)}
+   398→              </span>
+   399→              {business.industry && (
+   400→                <span className="inline-flex items-center gap-1">
+   401→                  <Building2 className="h-3 w-3" /> {business.industry.name}
+   402→                </span>
+   403→              )}
+   404→              <span className="inline-flex items-center gap-1">
+   405→                <Eye className="h-3 w-3" /> {formatNumber(business.views)} views
+   406→              </span>
+   407→              <span className="inline-flex items-center gap-1">
+   408→                <Calendar className="h-3 w-3" /> Added {formatDate(business.createdAt, { day: "numeric", month: "short", year: "numeric" })}
+   409→              </span>
+   410→            </div>
+   411→
+   412→            {/* Profile completion */}
+   413→            <div className="mt-4 flex items-center gap-3">
+   414→              <div className="h-1.5 w-40 max-w-full">
+   415→                <Progress value={business.profileCompletion} className="h-1.5" />
+   416→              </div>
+   417→              <span className="text-[11px] text-muted-foreground">
+   418→                {business.profileCompletion}% complete
+   419→              </span>
+   420→              {business.profileCompletion < 100 && (
+   421→                <span className="hidden text-[11px] text-foreground/40 sm:inline">
+   422→                  · add more detail to reach 100%
+   423→                </span>
+   424→              )}
+   425→            </div>
+   426→          </div>
+   427→        </div>
+   428→
+   429→        <Separator className="my-6" />
+   430→
+   431→        <div className="flex flex-wrap gap-2">
+   432→          <Button
+   433→            onClick={() => navigate({ name: "business", slug: business.slug })}
+   434→            className="bg-ink text-cream hover:bg-ink/90"
+   435→          >
+   436→            View public profile <ArrowRight className="ml-1 h-4 w-4" />
+   437→          </Button>
+   438→          <Button variant="outline" onClick={openEdit}>
+   439→            <Pencil className="mr-1.5 h-4 w-4" /> Edit details
+   440→          </Button>
+   441→          {!isVerified && !isPending && (
+   442→            <Button
+   443→              variant="outline"
+   444→              onClick={() => setShowVerifyForm((v) => !v)}
+   445→              className="border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+   446→            >
+   447→              <ShieldCheck className="mr-1.5 h-4 w-4" /> Submit for verification
+   448→            </Button>
+   449→          )}
+   450→        </div>
+   451→      </div>
+   452→
+   453→      {/* Verification inline form */}
+   454→      {showVerifyForm && !isVerified && !isPending && (
+   455→        <div className="rounded-2xl border border-sage/30 bg-sage/5 p-6 sm:p-8">
+   456→          <div className="flex items-start justify-between gap-4">
+   457→            <div>
+   458→              <h2 className="font-display text-xl tracking-tight text-ink">Request verification</h2>
+   459→              <p className="mt-1 text-sm text-muted-foreground">
+   460→                Choose the verification type you want to submit. We'll review within 2 business days.
+   461→              </p>
+   462→            </div>
+   463→            <button
+   464→              onClick={() => setShowVerifyForm(false)}
+   465→              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+   466→              aria-label="Close form"
+   467→            >
+   468→              <X className="h-4 w-4" />
+   469→            </button>
+   470→          </div>
+   471→
+   472→          <form onSubmit={handleVerifySubmit} className="mt-5 space-y-5">
+   473→            <div className="space-y-1.5">
+   474→              <Label>Verification type</Label>
+   475→              <Select value={verificationType} onValueChange={setVerificationType}>
+   476→                <SelectTrigger className="w-full">
+   477→                  <SelectValue />
+   478→                </SelectTrigger>
+   479→                <SelectContent>
+   480→                  {VERIFICATION_TYPES.map((t) => (
+   481→                    <SelectItem key={t.value} value={t.value}>
+   482→                      {t.label}
+   483→                    </SelectItem>
+   484→                  ))}
+   485→                </SelectContent>
+   486→              </Select>
+   487→            </div>
+   488→
+   489→            <div className="space-y-1.5">
+   490→              <Label htmlFor="documentUrl">Document URL (optional)</Label>
+   491→              <Input
+   492→                id="documentUrl"
+   493→                value={documentUrl}
+   494→                onChange={(e) => setDocumentUrl(e.target.value)}
+   495→                placeholder="File upload coming soon — paste a link for now"
+   496→                inputMode="url"
+   497→              />
+   498→              <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+   499→                <AlertCircle className="h-3 w-3" /> File uploads arrive shortly — paste a public link to your document for now.
+   500→              </p>
+   501→            </div>
+   502→
+   503→            <div className="space-y-1.5">
+   504→              <Label htmlFor="notes">Notes (optional)</Label>
+   505→              <Textarea
+   506→                id="notes"
+   507→                value={notes}
+   508→                onChange={(e) => setNotes(e.target.value)}
+   509→                rows={3}
+   510→                placeholder="Anything you'd like the reviewer to know — registration numbers, references, etc."
+   511→              />
+   512→            </div>
+   513→
+   514→            <div className="flex justify-end gap-2">
+   515→              <Button type="button" variant="outline" onClick={() => setShowVerifyForm(false)}>
+   516→                Cancel
+   517→              </Button>
+   518→              <Button type="submit" disabled={submitting} className="bg-ink text-cream hover:bg-ink/90">
+   519→                {submitting ? "Submitting…" : "Submit request"}
+   520→              </Button>
+   521→            </div>
+   522→          </form>
+   523→        </div>
+   524→      )}
+   525→
+   526→      {/* Body */}
+   527→      <div className="grid gap-6 lg:grid-cols-3">
+   528→        {/* Main column */}
+   529→        <div className="space-y-6 lg:col-span-2">
+   530→          <StatusCard status={status} onVerifyClick={() => setShowVerifyForm(true)} />
+   531→
+   532→          {/* Services & products card */}
+   533→          <div className="rounded-xl border border-border bg-card">
+   534→            <div className="border-b border-border px-5 py-4">
+   535→              <h2 className="font-display text-lg tracking-tight">Services & products</h2>
+   536→              <p className="text-sm text-muted-foreground">What your business offers.</p>
+   537→            </div>
+   538→            <div className="space-y-5 p-5">
+   539→              <div>
+   540→                <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+   541→                  <Briefcase className="h-3 w-3" /> Services
+   542→                </div>
+   543→                {(business.services ?? []).length === 0 ? (
+   544→                  <p className="text-sm text-muted-foreground">No services listed yet.</p>
+   545→                ) : (
+   546→                  <div className="flex flex-wrap gap-1.5">
+   547→                    {(business.services ?? []).map((s) => (
+   548→                      <Pill key={s.id}>{s.name}</Pill>
+   549→                    ))}
+   550→                  </div>
+   551→                )}
+   552→              </div>
+   553→
+   554→              <Separator />
+   555→
+   556→              <div>
+   557→                <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+   558→                  <Package className="h-3 w-3" /> Products
+   559→                </div>
+   560→                {(business.products ?? []).length === 0 ? (
+   561→                  <p className="text-sm text-muted-foreground">No products listed yet.</p>
+   562→                ) : (
+   563→                  <div className="flex flex-wrap gap-1.5">
+   564→                    {(business.products ?? []).map((p) => (
+   565→                      <Pill key={p.id} tone="sage">
+   566→                        {p.name}
+   567→                      </Pill>
+   568→                    ))}
+   569→                  </div>
+   570→                )}
+   571→              </div>
+   572→
+   573→              <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+   574→                <Pencil className="h-3 w-3" /> Use "Edit details" above to update services & products.
+   575→              </p>
+   576→            </div>
+   577→          </div>
+   578→
+   579→          {/* About */}
+   580→          {business.description && (
+   581→            <div className="rounded-xl border border-border bg-card">
+   582→              <div className="border-b border-border px-5 py-4">
+   583→                <h2 className="font-display text-lg tracking-tight">About</h2>
+   584→              </div>
+   585→              <div className="p-5">
+   586→                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+   587→                  {business.description}
+   588→                </p>
+   589→              </div>
+   590→            </div>
+   591→          )}
+   592→        </div>
+   593→
+   594→        {/* Side column */}
+   595→        <div className="space-y-6">
+   596→          {/* Trust signals */}
+   597→          <div className="rounded-xl border border-border bg-card p-5">
+   598→            <h2 className="font-display text-lg tracking-tight">Trust signals</h2>
+   599→            <ul className="mt-3 space-y-3 text-sm">
+   600→              <li className="flex items-center justify-between">
+   601→                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+   602→                  <ShieldCheck className="h-3.5 w-3.5" /> Verification
+   603→                </span>
+   604→                <span className="font-medium">{verificationLabel(status)}</span>
+   605→              </li>
+   606→              <li className="flex items-center justify-between">
+   607→                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+   608→                  <CheckCircle2 className="h-3.5 w-3.5" /> B-BBEE level
+   609→                </span>
+   610→                <span className="font-medium">{business.bbbeeLevel ?? "—"}</span>
+   611→              </li>
+   612→              <li className="flex items-center justify-between">
+   613→                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+   614→                  <Sparkles className="h-3.5 w-3.5" /> Profile completion
+   615→                </span>
+   616→                <span className="font-medium">{business.profileCompletion}%</span>
+   617→              </li>
+   618→              <li className="flex items-center justify-between">
+   619→                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+   620→                  <Eye className="h-3.5 w-3.5" /> Profile views
+   621→                </span>
+   622→                <span className="font-medium">{formatNumber(business.views)}</span>
+   623→              </li>
+   624→            </ul>
+   625→          </div>
+   626→
+   627→          {/* Contact info */}
+   628→          <ContactCard business={business} />
+   629→        </div>
+   630→      </div>
+   631→
+   632→      {editForm && (
+   633→        <EditBusinessDialog
+   634→          open={editOpen}
+   635→          onOpenChange={(o) => {
+   636→            setEditOpen(o);
+   637→            if (!o && !saving) setEditForm(null);
+   638→          }}
+   639→          form={editForm}
+   640→          setForm={setEditForm}
+   641→          industries={industries}
+   642→          saving={saving}
+   643→          onCancel={() => {
+   644→            setEditOpen(false);
+   645→            if (!saving) setEditForm(null);
+   646→          }}
+   647→          onSave={handleEditSave}
+   648→        />
+   649→      )}
+   650→    </div>
+   651→  );
+   652→}
+   653→
+   654→function StatusCard({
+   655→  status,
+   656→  onVerifyClick,
+   657→}: {
+   658→  status: VerificationStatus;
+   659→  onVerifyClick: () => void;
+   660→}) {
+   661→  if (status === "VERIFIED") {
+   662→    return (
+   663→      <div className="rounded-xl border border-sage/30 bg-sage/10 p-5">
+   664→        <div className="flex items-start gap-3">
+   665→          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage/20 text-sage">
+   666→            <ShieldCheck className="h-5 w-5" />
+   667→          </div>
+   668→          <div className="flex-1">
+   669→            <div className="flex items-center gap-2">
+   670→              <h3 className="font-display text-lg tracking-tight text-ink">Verified</h3>
+   671→              <VerifiedBadge status="VERIFIED" size="md" />
+   672→            </div>
+   673→            <p className="mt-1 text-sm text-muted-foreground">
+   674→              This business carries the BlakNet verified badge on its public profile — a signal of trust for buyers and partners.
+   675→            </p>
+   676→          </div>
+   677→        </div>
+   678→      </div>
+   679→    );
+   680→  }
+   681→
+   682→  if (status === "PENDING") {
+   683→    return (
+   684→      <div className="rounded-xl border border-border bg-card p-5">
+   685→        <div className="flex items-start gap-3">
+   686→          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+   687→            <Clock className="h-5 w-5" />
+   688→          </div>
+   689→          <div className="flex-1">
+   690→            <div className="flex items-center gap-2">
+   691→              <h3 className="font-display text-lg tracking-tight text-ink">Verification in review</h3>
+   692→              <VerifiedBadge status="PENDING" size="md" />
+   693→            </div>
+   694→            <p className="mt-1 text-sm text-muted-foreground">
+   695→              Your verification request is being reviewed. We typically respond within 2 business days.
+   696→            </p>
+   697→          </div>
+   698→        </div>
+   699→      </div>
+   700→    );
+   701→  }
+   702→
+   703→  if (status === "REJECTED") {
+   704→    return (
+   705→      <div className="rounded-xl border border-destructive/25 bg-destructive/5 p-5">
+   706→        <div className="flex items-start gap-3">
+   707→          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+   708→            <AlertCircle className="h-5 w-5" />
+   709→          </div>
+   710→          <div className="flex-1">
+   711→            <h3 className="font-display text-lg tracking-tight text-ink">Verification rejected</h3>
+   712→            <p className="mt-1 text-sm text-muted-foreground">
+   713→              Your last request was rejected. You can submit a new request with updated documents below.
+   714→            </p>
+   715→            <Button
+   716→              size="sm"
+   717→              variant="outline"
+   718→              onClick={onVerifyClick}
+   719→              className="mt-3 border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+   720→            >
+   721→              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Submit again
+   722→            </Button>
+   723→          </div>
+   724→        </div>
+   725→      </div>
+   726→    );
+   727→  }
+   728→
+   729→  // NOT_VERIFIED
+   730→  return (
+   731→    <div className="rounded-xl border border-border bg-card p-5">
+   732→      <div className="flex items-start gap-3">
+   733→        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink/5 text-foreground/60">
+   734→          <ShieldCheck className="h-5 w-5" />
+   735→        </div>
+   736→        <div className="flex-1">
+   737→          <h3 className="font-display text-lg tracking-tight text-ink">Not verified yet</h3>
+   738→          <p className="mt-1 text-sm text-muted-foreground">
+   739→            Submit your CIPC, B-BBEE, tax or industry certification to earn the verified badge and unlock priority placement in the directory.
+   740→          </p>
+   741→          <Button
+   742→            size="sm"
+   743→            variant="outline"
+   744→            onClick={onVerifyClick}
+   745→            className="mt-3 border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage"
+   746→          >
+   747→            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Request verification
+   748→          </Button>
+   749→        </div>
+   750→      </div>
+   751→    </div>
+   752→  );
+   753→}
+   754→
+   755→function ContactCard({ business }: { business: Business }) {
+   756→  const rows: Array<{
+   757→    icon: React.ComponentType<{ className?: string }>;
+   758→    label: string;
+   759→    value: string | null;
+   760→    href?: string;
+   761→  }> = [
+   762→    { icon: Globe, label: "Website", value: business.website, href: business.website ?? undefined },
+   763→    { icon: Mail, label: "Email", value: business.email, href: business.email ? `mailto:${business.email}` : undefined },
+   764→    { icon: Phone, label: "Phone", value: business.phone, href: business.phone ? `tel:${business.phone.replace(/\s/g, "")}` : undefined },
+   765→    {
+   766→      icon: MessageCircle,
+   767→      label: "WhatsApp",
+   768→      value: business.whatsapp,
+   769→      href: business.whatsapp ? `https://wa.me/${business.whatsapp.replace(/\D/g, "")}` : undefined,
+   770→    },
+   771→    { icon: MapPin, label: "Address", value: business.address },
+   772→  ];
+   773→
+   774→  const visible = rows.filter((r) => r.value);
+   775→
+   776→  return (
+   777→    <div className="rounded-xl border border-border bg-card p-5">
+   778→      <h2 className="font-display text-lg tracking-tight">Contact</h2>
+   779→      {visible.length === 0 ? (
+   780→        <p className="mt-3 text-sm text-muted-foreground">
+   781→          No contact details yet. Use “Edit details” above to add them.
+   782→        </p>
+   783→      ) : (
+   784→        <ul className="mt-3 space-y-3 text-sm">
+   785→          {visible.map((r) => (
+   786→            <li key={r.label} className="flex items-start gap-2.5">
+   787→              <r.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+   788→              <div className="min-w-0 flex-1">
+   789→                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+   790→                  {r.label}
+   791→                </p>
+   792→                {r.href ? (
+   793→                  <a
+   794→                    href={r.href}
+   795→                    target="_blank"
+   796→                    rel="noreferrer"
+   797→                    className="break-words text-sm text-ink hover:underline"
+   798→                  >
+   799→                    {r.value}
+   800→                  </a>
+   801→                ) : (
+   802→                  <p className="break-words text-sm text-ink">{r.value}</p>
+   803→                )}
+   804→              </div>
+   805→            </li>
+   806→          ))}
+   807→        </ul>
+   808→      )}
+   809→    </div>
+   810→  );
+   811→}
+   812→
+   813→// ---------- edit dialog ----------
+   814→
+   815→function EditBusinessDialog({
+   816→  open,
+   817→  onOpenChange,
+   818→  form,
+   819→  setForm,
+   820→  industries,
+   821→  saving,
+   822→  onCancel,
+   823→  onSave,
+   824→}: {
+   825→  open: boolean;
+   826→  onOpenChange: (open: boolean) => void;
+   827→  form: EditFormState;
+   828→  setForm: React.Dispatch<React.SetStateAction<EditFormState | null>>;
+   829→  industries: Industry[];
+   830→  saving: boolean;
+   831→  onCancel: () => void;
+   832→  onSave: () => void;
+   833→}) {
+   834→  const update = <K extends keyof EditFormState>(key: K, value: EditFormState[K]) => {
+   835→    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+   836→  };
+   837→
+   838→  return (
+   839→    <Dialog open={open} onOpenChange={onOpenChange}>
+   840→      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+   841→        <DialogHeader>
+   842→          <DialogTitle>Edit business</DialogTitle>
+   843→          <DialogDescription>
+   844→            Update your business profile. Changes go live immediately after saving.
+   845→          </DialogDescription>
+   846→        </DialogHeader>
+   847→
+   848→        <Tabs defaultValue="details" className="w-full">
+   849→          <TabsList className="w-full">
+   850→            <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+   851→            <TabsTrigger value="services" className="flex-1">Services &amp; Products</TabsTrigger>
+   852→          </TabsList>
+   853→
+   854→          {/* ---------- Details tab ---------- */}
+   855→          <TabsContent value="details" className="space-y-4 pt-2">
+   856→            <div className="space-y-1.5">
+   857→              <Label htmlFor="edit-name">
+   858→                Business name <span className="text-destructive">*</span>
+   859→              </Label>
+   860→              <Input
+   861→                id="edit-name"
+   862→                value={form.name}
+   863→                onChange={(e) => update("name", e.target.value)}
+   864→                placeholder="e.g. Langa & Sons Construction"
+   865→              />
+   866→            </div>
+   867→
+   868→            <div className="space-y-1.5">
+   869→              <Label htmlFor="edit-tagline">Tagline</Label>
+   870→              <Input
+   871→                id="edit-tagline"
+   872→                value={form.tagline}
+   873→                onChange={(e) => update("tagline", e.target.value)}
+   874→                placeholder="A one-line pitch that sets you apart"
+   875→              />
+   876→            </div>
+   877→
+   878→            <div className="space-y-1.5">
+   879→              <Label htmlFor="edit-description">About / Description</Label>
+   880→              <Textarea
+   881→                id="edit-description"
+   882→                value={form.description}
+   883→                onChange={(e) => update("description", e.target.value)}
+   884→                rows={4}
+   885→                placeholder="Tell customers your story, what you do and what makes you different."
+   886→              />
+   887→            </div>
+   888→
+   889→            <div className="grid gap-4 sm:grid-cols-2">
+   890→              <div className="space-y-1.5">
+   891→                <Label>Industry</Label>
+   892→                <Select
+   893→                  value={form.industryId}
+   894→                  onValueChange={(v) => update("industryId", v)}
+   895→                >
+   896→                  <SelectTrigger className="w-full">
+   897→                    <SelectValue placeholder="Select an industry" />
+   898→                  </SelectTrigger>
+   899→                  <SelectContent>
+   900→                    {industries.map((i) => (
+   901→                      <SelectItem key={i.id} value={i.id}>
+   902→                        {i.name}
+   903→                      </SelectItem>
+   904→                    ))}
+   905→                  </SelectContent>
+   906→                </Select>
+   907→              </div>
+   908→
+   909→              <div className="space-y-1.5">
+   910→                <Label>Province</Label>
+   911→                <Select
+   912→                  value={form.province}
+   913→                  onValueChange={(v) => update("province", v)}
+   914→                >
+   915→                  <SelectTrigger className="w-full">
+   916→                    <SelectValue placeholder="Select a province" />
+   917→                  </SelectTrigger>
+   918→                  <SelectContent>
+   919→                    {PROVINCES.map((p) => (
+   920→                      <SelectItem key={p} value={p}>
+   921→                        {p}
+   922→                      </SelectItem>
+   923→                    ))}
+   924→                  </SelectContent>
+   925→                </Select>
+   926→              </div>
+   927→
+   928→              <div className="space-y-1.5">
+   929→                <Label htmlFor="edit-city">City</Label>
+   930→                <Input
+   931→                  id="edit-city"
+   932→                  value={form.city}
+   933→                  onChange={(e) => update("city", e.target.value)}
+   934→                  placeholder="e.g. Johannesburg"
+   935→                />
+   936→              </div>
+   937→
+   938→              <div className="space-y-1.5">
+   939→                <Label htmlFor="edit-address">Address</Label>
+   940→                <Input
+   941→                  id="edit-address"
+   942→                  value={form.address}
+   943→                  onChange={(e) => update("address", e.target.value)}
+   944→                  placeholder="Street, suburb, postal code"
+   945→                />
+   946→              </div>
+   947→
+   948→              <div className="space-y-1.5">
+   949→                <Label htmlFor="edit-website">Website</Label>
+   950→                <Input
+   951→                  id="edit-website"
+   952→                  value={form.website}
+   953→                  onChange={(e) => update("website", e.target.value)}
+   954→                  placeholder="https://yourbusiness.co.za"
+   955→                  inputMode="url"
+   956→                />
+   957→              </div>
+   958→
+   959→              <div className="space-y-1.5">
+   960→                <Label htmlFor="edit-email">Business email</Label>
+   961→                <Input
+   962→                  id="edit-email"
+   963→                  type="email"
+   964→                  value={form.email}
+   965→                  onChange={(e) => update("email", e.target.value)}
+   966→                  placeholder="hello@yourbusiness.co.za"
+   967→                  inputMode="email"
+   968→                />
+   969→              </div>
+   970→
+   971→              <div className="space-y-1.5">
+   972→                <Label htmlFor="edit-phone">Phone</Label>
+   973→                <Input
+   974→                  id="edit-phone"
+   975→                  value={form.phone}
+   976→                  onChange={(e) => update("phone", e.target.value)}
+   977→                  placeholder="+27 11 555 0123"
+   978→                  inputMode="tel"
+   979→                />
+   980→              </div>
+   981→
+   982→              <div className="space-y-1.5">
+   983→                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+   984→                <Input
+   985→                  id="edit-whatsapp"
+   986→                  value={form.whatsapp}
+   987→                  onChange={(e) => update("whatsapp", e.target.value)}
+   988→                  placeholder="+27 82 555 0123"
+   989→                  inputMode="tel"
+   990→                />
+   991→              </div>
+   992→
+   993→              <div className="space-y-1.5">
+   994→                <Label>Business size</Label>
+   995→                <Select
+   996→                  value={form.businessSize}
+   997→                  onValueChange={(v) => update("businessSize", v)}
+   998→                >
+   999→                  <SelectTrigger className="w-full">
+  1000→                    <SelectValue placeholder="Select a size band" />
+  1001→                  </SelectTrigger>
+  1002→                  <SelectContent>
+  1003→                    {BUSINESS_SIZES.map((s) => (
+  1004→                      <SelectItem key={s.value} value={s.value}>
+  1005→                        {s.label}
+  1006→                      </SelectItem>
+  1007→                    ))}
+  1008→                  </SelectContent>
+  1009→                </Select>
+  1010→              </div>
+  1011→
+  1012→              <div className="space-y-1.5">
+  1013→                <Label htmlFor="edit-yearFounded">Year founded</Label>
+  1014→                <Input
+  1015→                  id="edit-yearFounded"
+  1016→                  type="number"
+  1017→                  inputMode="numeric"
+  1018→                  min={1900}
+  1019→                  max={new Date().getFullYear()}
+  1020→                  value={form.yearFounded}
+  1021→                  onChange={(e) => update("yearFounded", e.target.value)}
+  1022→                  placeholder="e.g. 2019"
+  1023→                />
+  1024→              </div>
+  1025→
+  1026→              <div className="space-y-1.5">
+  1027→                <Label>Employees</Label>
+  1028→                <Select
+  1029→                  value={form.employeeCount}
+  1030→                  onValueChange={(v) => update("employeeCount", v)}
+  1031→                >
+  1032→                  <SelectTrigger className="w-full">
+  1033→                    <SelectValue placeholder="Select employee range" />
+  1034→                  </SelectTrigger>
+  1035→                  <SelectContent>
+  1036→                    {EMPLOYEE_RANGES.map((r) => (
+  1037→                      <SelectItem key={r} value={r}>
+  1038→                        {r}
+  1039→                      </SelectItem>
+  1040→                    ))}
+  1041→                  </SelectContent>
+  1042→                </Select>
+  1043→              </div>
+  1044→
+  1045→              <div className="space-y-1.5">
+  1046→                <Label>Annual revenue</Label>
+  1047→                <Select
+  1048→                  value={form.annualRevenue}
+  1049→                  onValueChange={(v) => update("annualRevenue", v)}
+  1050→                >
+  1051→                  <SelectTrigger className="w-full">
+  1052→                    <SelectValue placeholder="Select revenue band" />
+  1053→                  </SelectTrigger>
+  1054→                  <SelectContent>
+  1055→                    {REVENUE_RANGES.map((r) => (
+  1056→                      <SelectItem key={r} value={r}>
+  1057→                        {r}
+  1058→                      </SelectItem>
+  1059→                    ))}
+  1060→                  </SelectContent>
+  1061→                </Select>
+  1062→              </div>
+  1063→
+  1064→              <div className="space-y-1.5">
+  1065→                <Label htmlFor="edit-cipc">CIPC registration number</Label>
+  1066→                <Input
+  1067→                  id="edit-cipc"
+  1068→                  value={form.cipcNumber}
+  1069→                  onChange={(e) => update("cipcNumber", e.target.value)}
+  1070→                  placeholder="e.g. 2019/123456/07"
+  1071→                />
+  1072→              </div>
+  1073→
+  1074→              <div className="space-y-1.5">
+  1075→                <Label>B-BBEE level</Label>
+  1076→                <Select
+  1077→                  value={form.bbbeeLevel}
+  1078→                  onValueChange={(v) => update("bbbeeLevel", v)}
+  1079→                >
+  1080→                  <SelectTrigger className="w-full">
+  1081→                    <SelectValue placeholder="Select a level" />
+  1082→                  </SelectTrigger>
+  1083→                  <SelectContent>
+  1084→                    {BBBEE_LEVELS.map((l) => (
+  1085→                      <SelectItem key={l} value={l}>
+  1086→                        {l}
+  1087→                      </SelectItem>
+  1088→                    ))}
+  1089→                  </SelectContent>
+  1090→                </Select>
+  1091→              </div>
+  1092→            </div>
+  1093→          </TabsContent>
+  1094→
+  1095→          {/* ---------- Services & Products tab ---------- */}
+  1096→          <TabsContent value="services" className="space-y-6 pt-2">
+  1097→            <EditTagInput
+  1098→              label="Services"
+  1099→              icon={Briefcase}
+  1100→              placeholder="Add a service, e.g. 'Bricklaying'"
+  1101→              values={form.services}
+  1102→              onChange={(vals) => update("services", vals)}
+  1103→              suggestions={SERVICE_SUGGESTIONS}
+  1104→            />
+  1105→
+  1106→            <Separator />
+  1107→
+  1108→            <EditTagInput
+  1109→              label="Products"
+  1110→              icon={Package}
+  1111→              placeholder="Add a product, e.g. 'Custom furniture'"
+  1112→              values={form.products}
+  1113→              onChange={(vals) => update("products", vals)}
+  1114→              suggestions={PRODUCT_SUGGESTIONS}
+  1115→            />
+  1116→          </TabsContent>
+  1117→        </Tabs>
+  1118→
+  1119→        <DialogFooter className="gap-2">
+  1120→          <Button variant="outline" onClick={onCancel} disabled={saving}>
+  1121→            Cancel
+  1122→          </Button>
+  1123→          <Button
+  1124→            onClick={onSave}
+  1125→            disabled={saving || !form.name.trim()}
+  1126→            className="bg-ink text-cream hover:bg-ink/90"
+  1127→          >
+  1128→            {saving ? (
+  1129→              <>
+  1130→                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Saving…
+  1131→              </>
+  1132→            ) : (
+  1133→              <>
+  1134→                <Save className="mr-1.5 h-4 w-4" /> Save changes
+  1135→              </>
+  1136→            )}
+  1137→          </Button>
+  1138→        </DialogFooter>
+  1139→      </DialogContent>
+  1140→    </Dialog>
+  1141→  );
+  1142→}
+  1143→
+  1144→function EditTagInput({
+  1145→  label,
+  1146→  icon: Icon,
+  1147→  placeholder,
+  1148→  values,
+  1149→  onChange,
+  1150→  suggestions,
+  1151→}: {
+  1152→  label: string;
+  1153→  icon: React.ComponentType<{ className?: string }>;
+  1154→  placeholder: string;
+  1155→  values: string[];
+  1156→  onChange: (vals: string[]) => void;
+  1157→  suggestions: string[];
+  1158→}) {
+  1159→  const [input, setInput] = useState("");
+  1160→
+  1161→  const add = (raw: string) => {
+  1162→    const v = raw.trim();
+  1163→    if (!v) return;
+  1164→    if (values.some((x) => x.toLowerCase() === v.toLowerCase())) {
+  1165→      setInput("");
+  1166→      return;
+  1167→    }
+  1168→    onChange([...values, v]);
+  1169→    setInput("");
+  1170→  };
+  1171→
+  1172→  const remove = (idx: number) => {
+  1173→    onChange(values.filter((_, i) => i !== idx));
+  1174→  };
+  1175→
+  1176→  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  1177→    if (e.key === "Enter" || e.key === ",") {
+  1178→      e.preventDefault();
+  1179→      add(input);
+  1180→    } else if (e.key === "Backspace" && !input && values.length) {
+  1181→      remove(values.length - 1);
+  1182→    }
+  1183→  };
+  1184→
+  1185→  const remainingSuggestions = suggestions.filter(
+  1186→    (s) => !values.some((v) => v.toLowerCase() === s.toLowerCase()),
+  1187→  );
+  1188→
+  1189→  return (
+  1190→    <div className="space-y-2">
+  1191→      <Label className="inline-flex items-center gap-1.5">
+  1192→        <Icon className="h-3.5 w-3.5 text-muted-foreground" /> {label}
+  1193→      </Label>
+  1194→
+  1195→      <div className="flex gap-2">
+  1196→        <Input
+  1197→          value={input}
+  1198→          onChange={(e) => setInput(e.target.value)}
+  1199→          onKeyDown={handleKeyDown}
+  1200→          placeholder={placeholder}
+  1201→        />
+  1202→        <Button
+  1203→          type="button"
+  1204→          variant="outline"
+  1205→          onClick={() => add(input)}
+  1206→          disabled={!input.trim()}
+  1207→        >
+  1208→          <Plus className="mr-1 h-3.5 w-3.5" /> Add
+  1209→        </Button>
+  1210→      </div>
+  1211→
+  1212→      {values.length > 0 && (
+  1213→        <div className="flex flex-wrap gap-1.5">
+  1214→          {values.map((v, i) => (
+  1215→            <span
+  1216→              key={`${v}-${i}`}
+  1217→              className="inline-flex items-center gap-1 rounded-full border border-ink/15 bg-ink/5 py-1 pl-3 pr-1.5 text-xs font-medium text-ink"
+  1218→            >
+  1219→              {v}
+  1220→              <button
+  1221→                type="button"
+  1222→                onClick={() => remove(i)}
+  1223→                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10 hover:text-foreground"
+  1224→                aria-label={`Remove ${v}`}
+  1225→              >
+  1226→                <X className="h-3 w-3" />
+  1227→              </button>
+  1228→            </span>
+  1229→          ))}
+  1230→        </div>
+  1231→      )}
+  1232→
+  1233→      {remainingSuggestions.length > 0 && (
+  1234→        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+  1235→          <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+  1236→            <Sparkles className="h-3 w-3 text-sage" /> Suggested
+  1237→          </span>
+  1238→          {remainingSuggestions.map((s) => (
+  1239→            <button
+  1240→              key={s}
+  1241→              type="button"
+  1242→              onClick={() => add(s)}
+  1243→              className="inline-flex items-center gap-1 rounded-full border border-sage/30 bg-sage/10 px-2.5 py-1 text-[11px] font-medium text-sage hover:bg-sage/20"
+  1244→            >
+  1245→              <Plus className="h-2.5 w-2.5" /> {s}
+  1246→            </button>
+  1247→          ))}
+  1248→        </div>
+  1249→      )}
+  1250→    </div>
+  1251→  );
+  1252→}
+  1253→
