@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/lib/format";
 
 const PUBLIC_LINKS: { label: string; route: Parameters<ReturnType<typeof useApp.getState>["navigate"]>[0] }[] = [
-  { label: "Feed", route: { name: "newsfeed" } },
+  { label: "Newsfeed", route: { name: "newsfeed" } },
   { label: "Directory", route: { name: "directory" } },
   { label: "My Businesses", route: { name: "dashboard-businesses" } },
   { label: "Events", route: { name: "events" } },
@@ -53,7 +53,7 @@ export function PublicHeader() {
           : "border-transparent bg-background",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <button
           type="button"
@@ -64,8 +64,21 @@ export function PublicHeader() {
           <Logo />
         </button>
 
+        {/* Search bar (right after logo) */}
+        <form onSubmit={submitSearch} className="hidden items-center md:flex">
+          <div className="relative w-full">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+            <input
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Search businesses, services…"
+              className="h-9 w-[200px] rounded-full border border-border bg-card pl-9 pr-3 text-sm placeholder:text-foreground/40 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30 lg:w-[240px]"
+            />
+          </div>
+        </form>
+
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-0.5 lg:flex">
           {PUBLIC_LINKS.map((l) => (
             <button
               key={l.label}
@@ -83,21 +96,8 @@ export function PublicHeader() {
           ))}
         </nav>
 
-        {/* Search (desktop) */}
-        <form onSubmit={submitSearch} className="ml-auto hidden flex-1 max-w-xs items-center md:flex">
-          <div className="relative w-full">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
-            <input
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search businesses, services…"
-              className="h-9 w-full rounded-full border border-border bg-card pl-9 pr-3 text-sm placeholder:text-foreground/40 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
-            />
-          </div>
-        </form>
-
-        {/* Auth / actions */}
-        <div className="ml-auto flex items-center gap-2 md:ml-2">
+        {/* Auth / actions (far right) */}
+        <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
           {authLoading ? (
             <div className="h-9 w-24 animate-pulse rounded-full bg-muted" />
