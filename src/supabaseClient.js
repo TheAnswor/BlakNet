@@ -17,9 +17,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 // 👇 PASTE YOUR SUPABASE URL HERE
-const SUPABASE_URL = "{{SUPABASE_URL}}";
+const SUPABASE_URL = "https://dlltfrajpnuujbbpqadz.supabase.co";
 
 // 👇 PASTE YOUR SUPABASE PUBLIC (anon) KEY HERE
-const SUPABASE_PUBLIC_KEY = "{{SUPABASE_KEY}}";
+const SUPABASE_PUBLIC_KEY = "sb_publishable_LNayL_VRk1SznCf0P6xudg_T0JUfwOM";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
