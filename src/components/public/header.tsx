@@ -6,17 +6,17 @@ import { Logo } from "@/components/blaknet/logo";
 import { ThemeToggle } from "@/components/blaknet/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { Menu, Search, Bell, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+import { Menu, Search, Bell, LogOut, ChevronDown, Users, Inbox, Settings, CreditCard, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/lib/format";
 
 const PUBLIC_LINKS: { label: string; route: Parameters<ReturnType<typeof useApp.getState>["navigate"]>[0] }[] = [
-  { label: "Newsfeed", route: { name: "newsfeed" } },
+  { label: "Feed", route: { name: "newsfeed" } },
   { label: "Directory", route: { name: "directory" } },
+  { label: "My Businesses", route: { name: "dashboard-businesses" } },
   { label: "Events", route: { name: "events" } },
   { label: "Resources", route: { name: "resources" } },
-  { label: "Pricing", route: { name: "pricing" } },
   { label: "About", route: { name: "about" } },
 ];
 
@@ -170,9 +170,23 @@ export function PublicHeader() {
                       <Button
                         variant="outline"
                         className="w-full justify-start"
-                        onClick={() => navigate({ name: "dashboard" })}
+                        onClick={() => navigate({ name: "dashboard-following" })}
                       >
-                        <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                        <Users className="mr-2 h-4 w-4" /> Following &amp; Followers
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => navigate({ name: "dashboard-notifications" })}
+                      >
+                        <Bell className="mr-2 h-4 w-4" /> Notifications
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => navigate({ name: "dashboard-settings" })}
+                      >
+                        <Settings className="mr-2 h-4 w-4" /> Settings
                       </Button>
                       <Button
                         variant="ghost"
@@ -181,7 +195,7 @@ export function PublicHeader() {
                           await fetch("/api/auth/logout", { method: "POST" });
                           await useApp.getState().refreshAuth();
                           toast({ title: "Signed out", description: "Come back soon." });
-                          navigate({ name: "newsfeed" });
+                          navigate({ name: "login" });
                         }}
                       >
                         <LogOut className="mr-2 h-4 w-4" /> Sign out
@@ -248,12 +262,12 @@ function UserMenu() {
             <button
               type="button"
               onMouseDown={() => {
-                navigate({ name: "dashboard" });
+                navigate({ name: "dashboard-following" });
                 setOpen(false);
               }}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
             >
-              <LayoutDashboard className="h-4 w-4" /> Dashboard
+              <Users className="h-4 w-4" /> Following &amp; Followers
             </button>
             <button
               type="button"
@@ -267,11 +281,51 @@ function UserMenu() {
             </button>
             <button
               type="button"
+              onMouseDown={() => {
+                navigate({ name: "dashboard-enquiries" });
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            >
+              <Inbox className="h-4 w-4" /> Enquiries
+            </button>
+            <button
+              type="button"
+              onMouseDown={() => {
+                navigate({ name: "dashboard-settings" });
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            >
+              <Settings className="h-4 w-4" /> Settings
+            </button>
+            <button
+              type="button"
+              onMouseDown={() => {
+                navigate({ name: "dashboard-plan" });
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            >
+              <CreditCard className="h-4 w-4" /> Plan
+            </button>
+            <button
+              type="button"
+              onMouseDown={() => {
+                navigate({ name: "dashboard-help" });
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            >
+              <LifeBuoy className="h-4 w-4" /> Help
+            </button>
+            <button
+              type="button"
               onMouseDown={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
                 await refreshAuth();
                 toast({ title: "Signed out" });
-                navigate({ name: "newsfeed" });
+                navigate({ name: "login" });
                 setOpen(false);
               }}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/5"
