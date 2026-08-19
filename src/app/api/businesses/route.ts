@@ -118,6 +118,24 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
   }
+
+  // Plan-based business count limits
+  const PLAN_BUSINESS_LIMITS: Record<string, number> = {
+    STARTER: 1,
+    VERIFIED: 3,
+    INTELLIGENCE: 5,
+  };
+  const existingBusinessCount = await db.business.count({ where: { ownerId: user.id } });
+  const limit = PLAN_BUSINESS_LIMITS[user.plan] ?? 1;
+  if (existingBusinessCount >= limit) {
+    return NextResponse.json(
+      {
+        error: `Your ${user.plan} plan allows up to ${limit} business${limit > 1 ? "es" : ""}. Upgrade to add more.`,
+      },
+      { status: 403 },
+    );
+  }
+
   const body = await req.json().catch(() => ({}));
   const {
     name,

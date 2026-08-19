@@ -44,6 +44,7 @@ import { AdminReportsView } from "@/views/admin/reports";
 import { ComingSoon } from "@/views/public/coming-soon";
 import { BusinessAnalyticsView } from "@/views/dashboard/business-analytics";
 import { AdminSettingsView } from "@/views/admin/settings";
+import { InviteAcceptView } from "@/views/public/invite-accept";
 
 // Routes that show the public header + footer (marketing surface)
 const PUBLIC_ROUTES = new Set([
@@ -71,6 +72,7 @@ export default function Page() {
 
   const isPublic = PUBLIC_ROUTES.has(route.name);
   const isAuth = AUTH_ROUTES.has(route.name);
+  const isInvite = route.name === "invite";
   const isDash = route.name === "dashboard" || route.name.startsWith("dashboard-");
   const isAdmin = route.name === "admin" || route.name.startsWith("admin-");
 
@@ -88,6 +90,14 @@ export default function Page() {
     }
      
   }, [authLoading, route.name]);
+
+  if (isInvite) {
+    return (
+      <div className="min-h-screen bg-background">
+        <InviteAcceptView />
+      </div>
+    );
+  }
 
   if (isAuth) {
     return (

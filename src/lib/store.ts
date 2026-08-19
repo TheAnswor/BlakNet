@@ -32,6 +32,8 @@ function parseHash(hash: string): Route {
       return { name: "register" };
     case "forgot":
       return { name: "forgot" };
+    case "invite":
+      return b ? { name: "invite", token: decodeURIComponent(b) } : { name: "home" };
     case "dashboard":
       if (!b || b === "") return { name: "dashboard" };
       if (b === "businesses") {
@@ -90,6 +92,8 @@ export function routeToHash(route: Route): string {
       return `#/dashboard/businesses/${encodeURIComponent(route.id)}`;
     case "dashboard-business-new":
       return `#/dashboard/businesses/new`;
+    case "invite":
+      return `#/invite/${encodeURIComponent(route.token)}`;
     default:
       return `#/${route.name.replace(/^dashboard-/, "dashboard/").replace(/^admin-/, "admin/")}`;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, useCallback, type FormEvent, type KeyboardEvent } from "react";
 import { useApp } from "@/lib/store";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectTrigger,
@@ -42,8 +43,8 @@ import {
 import { EmptyState } from "@/components/blaknet/section";
 import { ImageUpload } from "@/components/blaknet/image-upload";
 import { VerifiedBadge, BBBEEBadge, Pill } from "@/components/blaknet/badges";
-import type { Business, Industry, VerificationStatus } from "@/lib/types";
-import { formatDate, formatNumber, provinceCity, verificationLabel } from "@/lib/format";
+import type { Business, Industry, Plan, VerificationStatus } from "@/lib/types";
+import { formatDate, formatNumber, initials, provinceCity, verificationLabel } from "@/lib/format";
 import {
   ArrowLeft,
   ArrowRight,
@@ -68,7 +69,42 @@ import {
   Plus,
   Save,
   Loader2,
+  UserPlus,
+  Users,
+  Trash2,
 } from "lucide-react";
+
+// ---------- team member + invite shape ----------
+interface TeamMember {
+  id: string;
+  role: "OWNER" | "MANAGER" | "STAFF";
+  isOwner: boolean;
+  user: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    profileImage: string | null;
+  };
+  createdAt: string;
+}
+interface TeamInvite {
+  id: string;
+  email: string;
+  role: "MANAGER" | "STAFF";
+  status: string;
+  createdAt: string;
+}
+interface TeamPayload {
+  members: TeamMember[];
+  invites: TeamInvite[];
+}
+
+const PLAN_SEATS: Record<Plan, number> = {
+  STARTER: 1,
+  VERIFIED: 3,
+  INTELLIGENCE: 5,
+};
 
 const VERIFICATION_TYPES = [
   { value: "CIPC", label: "CIPC registration" },
@@ -195,6 +231,7 @@ export function BusinessDetailView() {
 
 function BusinessDetail({ id }: { id: string }) {
   const navigate = useApp((s) => s.navigate);
+  const authUser = useApp((s) => s.authUser);
   const { toast } = useToast();
 
   const [business, setBusiness] = useState<Business | null>(null);
@@ -213,6 +250,29 @@ function BusinessDetail({ id }: { id: string }) {
   const [documentUrl, setDocumentUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // team members state
+  const [team, setTeam] = useState<TeamPayload | null>(null);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"STAFF" | "MANAGER">("STAFF");
+  const [inviting, setInviting] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const fetchTeam = useCallback(async (slug: string) => {
+    setTeamLoading(true);
+    try {
+      const data = await api<TeamPayload>(
+        `/api/businesses/${encodeURIComponent(slug)}/members`,
+      );
+      setTeam(data);
+    } catch {
+      setTeam(null);
+    } finally {
+      setTeamLoading(false);
+    }
+  }, []);
 
   // Load industries (for the edit dialog's industry Select).
   useEffect(() => {
@@ -236,7 +296,7 @@ function BusinessDetail({ id }: { id: string }) {
       .then((d) => {
         if (cancelled) return;
         const found = (d.items ?? []).find((b) => b.id === id);
-        if (found) setBusiness(found);
+        if (found) setBusiness({ ...found, isOwner: true });
         else setNotFound(true);
       })
       .catch(() => {
@@ -255,7 +315,7 @@ function BusinessDetail({ id }: { id: string }) {
     api<{ items: Business[] }>("/api/businesses/owner")
       .then((d) => {
         const found = (d.items ?? []).find((b) => b.id === id);
-        if (found) setBusiness(found);
+        if (found) setBusiness({ ...found, isOwner: true });
       })
       .catch(() => {
         /* silent */
@@ -331,6 +391,107 @@ function BusinessDetail({ id }: { id: string }) {
       setSubmitting(false);
     }
   };
+
+  // ----- team handlers -----
+  const openInvite = () => {
+    setInviteEmail("");
+    setInviteRole("STAFF");
+    setInviteOpen(true);
+  };
+
+  const handleInviteSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!business) return;
+    const email = inviteEmail.trim();
+    if (!email) {
+      toast({ title: "Email is required.", variant: "destructive" });
+      return;
+    }
+    setInviting(true);
+    try {
+      await api(`/api/businesses/${encodeURIComponent(business.slug)}/invite`, {
+        method: "POST",
+        json: { email, role: inviteRole },
+      });
+      toast({
+        title: "Invite sent",
+        description: `${email} will receive an email to join your team.`,
+      });
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("STAFF");
+      fetchTeam(business.slug);
+    } catch (err) {
+      toast({
+        title: "Couldn't send invite",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const removeMember = async (memberId: string) => {
+    if (!business) return;
+    if (
+      !window.confirm(
+        "Remove this team member? They'll lose access to the business dashboard.",
+      )
+    )
+      return;
+    setRemovingId(memberId);
+    try {
+      await api(
+        `/api/businesses/${encodeURIComponent(business.slug)}/members?memberId=${encodeURIComponent(memberId)}`,
+        { method: "DELETE" },
+      );
+      toast({ title: "Member removed" });
+      fetchTeam(business.slug);
+    } catch (err) {
+      toast({
+        title: "Couldn't remove member",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const revokeInvite = async (inviteId: string) => {
+    if (!business) return;
+    if (
+      !window.confirm(
+        "Revoke this invite? The recipient won't be able to accept it.",
+      )
+    )
+      return;
+    setRemovingId(inviteId);
+    try {
+      await api(
+        `/api/businesses/${encodeURIComponent(business.slug)}/members?inviteId=${encodeURIComponent(inviteId)}`,
+        { method: "DELETE" },
+      );
+      toast({ title: "Invite revoked" });
+      fetchTeam(business.slug);
+    } catch (err) {
+      toast({
+        title: "Couldn't revoke invite",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  // fetch team members once the owner's business is loaded
+  useEffect(() => {
+    if (business?.isOwner && business.slug) {
+      fetchTeam(business.slug);
+    }
+  }, [business?.isOwner, business?.slug, fetchTeam]);
 
   if (loading) {
     return (
@@ -648,6 +809,85 @@ function BusinessDetail({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* Team members — owner-only */}
+      {business.isOwner && (
+        <TeamMembersCard
+          team={team}
+          loading={teamLoading}
+          plan={authUser?.plan ?? "STARTER"}
+          removingId={removingId}
+          onInviteOpen={openInvite}
+          onRemoveMember={removeMember}
+          onRevokeInvite={revokeInvite}
+          onUpgrade={() => navigate({ name: "dashboard-plan" })}
+        />
+      )}
+
+      {/* Invite dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-sage" />
+              Invite a team member
+            </DialogTitle>
+            <DialogDescription>
+              They'll receive an email with a link to join your business on BlakNet.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleInviteSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-email">Email</Label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="invite-email"
+                  type="email"
+                  autoComplete="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="teammate@example.co.za"
+                  className="h-10 pl-9"
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v === "MANAGER" ? "MANAGER" : "STAFF")}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="STAFF">Staff</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Managers can help manage this business; staff have view access.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)} disabled={inviting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={inviting} className="bg-ink text-cream hover:bg-ink/90">
+                {inviting ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Sending…
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-1.5 h-4 w-4" /> Send invite
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {editForm && (
         <EditBusinessDialog
           open={editOpen}
@@ -666,6 +906,191 @@ function BusinessDetail({ id }: { id: string }) {
           onSave={handleEditSave}
         />
       )}
+    </div>
+  );
+}
+
+// ---------- Team members ----------
+function roleTone(role: TeamMember["role"]): "sage" | "neutral" | "ink" {
+  if (role === "OWNER") return "sage";
+  if (role === "MANAGER") return "neutral";
+  return "ink";
+}
+function roleLabel(role: TeamMember["role"]): string {
+  if (role === "OWNER") return "Owner";
+  if (role === "MANAGER") return "Manager";
+  return "Staff";
+}
+function memberName(m: TeamMember): string {
+  const name = [m.user.firstName, m.user.lastName].filter(Boolean).join(" ");
+  return name || m.user.email.split("@")[0];
+}
+
+function TeamMembersCard({
+  team,
+  loading,
+  plan,
+  removingId,
+  onInviteOpen,
+  onRemoveMember,
+  onRevokeInvite,
+  onUpgrade,
+}: {
+  team: TeamPayload | null;
+  loading: boolean;
+  plan: Plan;
+  removingId: string | null;
+  onInviteOpen: () => void;
+  onRemoveMember: (id: string) => void;
+  onRevokeInvite: (id: string) => void;
+  onUpgrade: () => void;
+}) {
+  const members = team?.members ?? [];
+  const invites = team?.invites ?? [];
+  const seatLimit = PLAN_SEATS[plan] ?? 1;
+  const usedSeats = members.length + invites.length;
+  const atLimit = usedSeats >= seatLimit;
+
+  return (
+    <div className="card-soft rounded-xl border border-border bg-card p-6 animate-fade-in-up">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="flex items-center gap-2 font-display text-xl tracking-tight text-ink">
+            <Users className="h-5 w-5 text-sage" /> Team members
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Invite and manage who can collaborate on this business.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-foreground/[0.03] px-3 py-1 text-[11px] font-medium text-foreground/70">
+            <Users className="h-3.5 w-3.5" />
+            {usedSeats} / {seatLimit} seats used
+          </span>
+          {atLimit ? (
+            <Button variant="outline" size="sm" onClick={onUpgrade} className="border-sage/30 bg-sage/10 text-sage hover:bg-sage/20 hover:text-sage">
+              Upgrade to add more seats
+            </Button>
+          ) : (
+            <Button size="sm" onClick={onInviteOpen} className="bg-ink text-cream hover:bg-ink/90">
+              <UserPlus className="mr-1.5 h-4 w-4" /> Invite user
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-6">
+        {/* Members */}
+        <div>
+          <div className="mb-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Members
+          </div>
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: Math.max(2, members.length || 2) }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : members.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No members yet.</p>
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+              {members.map((m) => (
+                <li
+                  key={m.id}
+                  className="flex items-center gap-3 bg-card px-4 py-3"
+                >
+                  <Avatar className="h-9 w-9 border border-border">
+                    {m.user.profileImage ? (
+                      <AvatarImage src={m.user.profileImage} alt={memberName(m)} />
+                    ) : null}
+                    <AvatarFallback className="bg-ink text-cream text-xs">
+                      {initials(m.user)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-medium">
+                        {memberName(m)}
+                      </span>
+                      <Pill tone={roleTone(m.role)}>{roleLabel(m.role)}</Pill>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {m.user.email} · joined {formatDate(m.createdAt, { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  {!m.isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveMember(m.id)}
+                      disabled={removingId === m.id}
+                      aria-label="Remove member"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                    >
+                      {removingId === m.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Pending invites */}
+        {loading ? null : invites.length === 0 ? null : (
+          <div>
+            <div className="mb-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Pending invites
+            </div>
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-dashed border-border">
+              {invites.map((i) => (
+                <li key={i.id} className="flex items-center gap-3 bg-cream-grain/40 px-4 py-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/5 text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-medium">{i.email}</span>
+                      <Pill tone="neutral">{roleLabel(i.role as TeamMember["role"])}</Pill>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/20 bg-muted-foreground/10 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        <Clock className="h-3 w-3" /> Pending
+                      </span>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      Sent {formatDate(i.createdAt, { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRevokeInvite(i.id)}
+                    disabled={removingId === i.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive disabled:opacity-50"
+                  >
+                    {removingId === i.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5" />
+                    )}
+                    Revoke
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!loading && members.length === 0 && invites.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border bg-foreground/[0.02] px-5 py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              You haven't added any team members yet. Invite someone to help manage this business.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

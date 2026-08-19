@@ -41,6 +41,7 @@ model User {
   businessMembers  BusinessMember[]
   follows          BusinessFollow[]
   enquiries        BusinessEnquiry[]
+  sentInvites      BusinessInvite[] @relation("SentInvites")
 }
 
 model Session {
@@ -126,6 +127,7 @@ model Business {
   posts         Post[]
   events        Event[]
   members       BusinessMember[]
+  invites       BusinessInvite[]
   follows       BusinessFollow[]
   enquiries     BusinessEnquiry[]
   verifications VerificationRequest[]
@@ -142,9 +144,27 @@ model BusinessMember {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role        String   @default("OWNER") // OWNER | MANAGER | STAFF
-  createdAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@unique([businessId, userId])
+}
+
+model BusinessInvite {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  email       String
+  role        String   @default("STAFF") // MANAGER | STAFF
+  token       String   @unique
+  status      String   @default("PENDING") // PENDING | ACCEPTED | REVOKED
+  invitedBy   String
+  inviter     User     @relation("SentInvites", fields: [invitedBy], references: [id], onDelete: Cascade)
+  acceptedBy  String?
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
+  @@index([email])
 }
 
 model BusinessFollow {

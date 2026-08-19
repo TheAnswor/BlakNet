@@ -188,6 +188,7 @@ export type Route =
   | { name: "login" }
   | { name: "register" }
   | { name: "forgot" }
+  | { name: "invite"; token: string }
   | { name: "dashboard" }
   | { name: "dashboard-businesses" }
   | { name: "dashboard-business-new" }

@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
 import { api, qs } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Pill } from "@/components/blaknet/badges";
 import { SectionHeading, EmptyState } from "@/components/blaknet/section";
 import { EVENT_CATEGORIES } from "@/lib/constants";
@@ -24,6 +31,8 @@ import {
   Presentation,
   HandCoins,
   Coffee,
+  Filter,
+  X,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<string, typeof Network> = {
@@ -65,6 +74,123 @@ function getInitials(title: string): string {
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+// ---------- Day filter ----------
+type DayFilter =
+  | "any"
+  | "soon"
+  | "today"
+  | "tomorrow"
+  | "this-week"
+  | "weekend"
+  | "next-week";
+
+const DAY_OPTIONS: { value: DayFilter; label: string }[] = [
+  { value: "any", label: "Any day" },
+  { value: "soon", label: "Starting soon" },
+  { value: "today", label: "Today" },
+  { value: "tomorrow", label: "Tomorrow" },
+  { value: "this-week", label: "This week" },
+  { value: "weekend", label: "This weekend" },
+  { value: "next-week", label: "Next week" },
+];
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function matchesDay(eventStart: string, filter: DayFilter): boolean {
+  if (filter === "any") return true;
+  const start = new Date(eventStart);
+  const now = new Date();
+  const today = startOfDay(now);
+  const eventDay = startOfDay(start);
+
+  if (filter === "today") {
+    return eventDay.getTime() === today.getTime();
+  }
+  if (filter === "tomorrow") {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    return eventDay.getTime() === tomorrow.getTime();
+  }
+  if (filter === "soon") {
+    const diff = start.getTime() - now.getTime();
+    return diff >= 0 && diff <= 24 * 60 * 60 * 1000;
+  }
+  if (filter === "this-week") {
+    // current ISO week (Mon–Sun)
+    const dayOfWeek = (today.getDay() + 6) % 7; // 0 = Mon
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - dayOfWeek);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return eventDay >= monday && eventDay <= sunday;
+  }
+  if (filter === "weekend") {
+    const dow = eventDay.getDay();
+    return dow === 0 || dow === 6; // Sat or Sun
+  }
+  if (filter === "next-week") {
+    const dayOfWeek = (today.getDay() + 6) % 7;
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() - dayOfWeek + 7);
+    const nextSunday = new Date(nextMonday);
+    nextSunday.setDate(nextMonday.getDate() + 6);
+    nextSunday.setHours(23, 59, 59, 999);
+    return eventDay >= nextMonday && eventDay <= nextSunday;
+  }
+  return true;
+}
+
+// ---------- Size filter ----------
+type SizeFilter = "any" | "1-9" | "10-20" | "20-50" | "50-100" | "100+";
+
+const SIZE_OPTIONS: { value: SizeFilter; label: string }[] = [
+  { value: "any", label: "Any size" },
+  { value: "1-9", label: "1-9 attendees" },
+  { value: "10-20", label: "10-20 attendees" },
+  { value: "20-50", label: "20-50 attendees" },
+  { value: "50-100", label: "50-100 attendees" },
+  { value: "100+", label: "100+ attendees" },
+];
+
+function matchesSize(attendees: number, filter: SizeFilter): boolean {
+  switch (filter) {
+    case "any":
+      return true;
+    case "1-9":
+      return attendees >= 1 && attendees <= 9;
+    case "10-20":
+      return attendees >= 10 && attendees <= 20;
+    case "20-50":
+      return attendees > 20 && attendees <= 50;
+    case "50-100":
+      return attendees > 50 && attendees <= 100;
+    case "100+":
+      return attendees > 100;
+  }
+  return true;
+}
+
+// ---------- Type filter ----------
+type TypeFilter = "any" | "online" | "in-person";
+
+const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: "any", label: "Any type" },
+  { value: "online", label: "Online" },
+  { value: "in-person", label: "In-person" },
+];
+
+function matchesType(isOnline: boolean, filter: TypeFilter): boolean {
+  if (filter === "any") return true;
+  if (filter === "online") return isOnline === true;
+  if (filter === "in-person") return isOnline === false;
+  return true;
 }
 
 function EventCard({ event }: { event: BlakEvent }) {
@@ -160,6 +286,9 @@ function GridSkeletons() {
 
 export function EventsView() {
   const [active, setActive] = useState<string>("all");
+  const [dayFilter, setDayFilter] = useState<DayFilter>("any");
+  const [sizeFilter, setSizeFilter] = useState<SizeFilter>("any");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("any");
   const [events, setEvents] = useState<BlakEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -216,6 +345,25 @@ export function EventsView() {
     setActive((cur) => (cur === value ? "all" : value));
   }
 
+  const hasFilters =
+    dayFilter !== "any" || sizeFilter !== "any" || typeFilter !== "any";
+
+  const clearFilters = () => {
+    setDayFilter("any");
+    setSizeFilter("any");
+    setTypeFilter("any");
+  };
+
+  const filtered = useMemo(() => {
+    if (!hasFilters) return events;
+    return events.filter((e) => {
+      const dayOk = matchesDay(e.startDate, dayFilter);
+      const sizeOk = matchesSize(e._count?.attendees ?? 0, sizeFilter);
+      const typeOk = matchesType(e.isOnline, typeFilter);
+      return dayOk && sizeOk && typeOk;
+    });
+  }, [events, dayFilter, sizeFilter, typeFilter, hasFilters]);
+
   return (
     <div className="flex flex-col">
       {/* HEADER */}
@@ -233,7 +381,7 @@ export function EventsView() {
       <section className="bg-background">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
           {/* CATEGORY FILTER */}
-          <div className="scroll-elegant -mx-1 mb-8 flex gap-2 overflow-x-auto px-1 pb-1">
+          <div className="scroll-elegant -mx-1 mb-6 flex gap-2 overflow-x-auto px-1 pb-1">
             <button
               type="button"
               onClick={() => setActive("all")}
@@ -266,6 +414,75 @@ export function EventsView() {
             })}
           </div>
 
+          {/* FILTER BAR — Day / Size / Type */}
+          <div className="mb-8 flex flex-wrap items-center gap-2 border-b border-border pb-6">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Filter className="h-3.5 w-3.5" /> Filters:
+            </span>
+            <Select
+              value={dayFilter}
+              onValueChange={(v) => setDayFilter(v as DayFilter)}
+            >
+              <SelectTrigger className="h-9 w-auto min-w-[140px] gap-1.5 border-border bg-card text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DAY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={sizeFilter}
+              onValueChange={(v) => setSizeFilter(v as SizeFilter)}
+            >
+              <SelectTrigger className="h-9 w-auto min-w-[160px] gap-1.5 border-border bg-card text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SIZE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={typeFilter}
+              onValueChange={(v) => setTypeFilter(v as TypeFilter)}
+            >
+              <SelectTrigger className="h-9 w-auto min-w-[140px] gap-1.5 border-border bg-card text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasFilters && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 gap-1.5 border-border text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </Button>
+            )}
+            {hasFilters && (
+              <span className="ml-auto text-[11px] text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{filtered.length}</span> of{" "}
+                <span className="font-medium text-foreground">{events.length}</span>
+              </span>
+            )}
+          </div>
+
           {loading ? (
             <GridSkeletons />
           ) : error ? (
@@ -279,14 +496,20 @@ export function EventsView() {
                 </Button>
               }
             />
-          ) : events.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={Frown}
               title="No upcoming events match your filters."
               description="Try clearing filters, or check back soon — new events are added weekly."
               action={
-                active !== "all" ? (
-                  <Button variant="outline" onClick={() => setActive("all")}>
+                hasFilters || active !== "all" ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setActive("all");
+                      clearFilters();
+                    }}
+                  >
                     Clear filters
                   </Button>
                 ) : undefined
@@ -294,7 +517,7 @@ export function EventsView() {
             />
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((e, i) => (
+              {filtered.map((e, i) => (
                 <div
                   key={e.id}
                   className="animate-fade-in-up"
