@@ -229,41 +229,66 @@ function EventCard({ event }: { event: BlakEvent }) {
     }
   }
 
+  function closeDialog() {
+    setShareOpen(false);
+  }
+
+  function shareToSocial(url: string) {
+    closeDialog();
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function shareToInstagram() {
+    // Instagram doesn't support URL-based sharing — copy link first, then open app
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        toast({ title: "Link copied", description: "Paste it into your Instagram post or story." });
+      }).catch(() => {});
+    }
+    closeDialog();
+    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+  }
+
+  function shareToEmail() {
+    closeDialog();
+    window.location.href = `mailto:?subject=${encodeURIComponent(event.title)}&body=${encodeURIComponent(shareText + "\n\n" + shareUrl)}`;
+  }
+
   const shareOptions = [
     {
       label: "Copy link",
       icon: copied ? Check : LinkIcon,
-      onClick: handleCopy,
+      onClick: () => { handleCopy(); },
       tone: "ink" as const,
     },
     {
       label: "Facebook",
       icon: FacebookIcon,
-      onClick: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer"),
+      onClick: () => shareToSocial(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`),
       tone: "neutral" as const,
     },
     {
       label: "Instagram",
       icon: InstagramIcon,
-      onClick: () => window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer"),
+      onClick: shareToInstagram,
       tone: "neutral" as const,
     },
     {
       label: "LinkedIn",
       icon: LinkedinIcon,
-      onClick: () => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer"),
+      onClick: () => shareToSocial(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`),
       tone: "neutral" as const,
     },
     {
       label: "X.com",
       icon: XIcon,
-      onClick: () => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer"),
+      onClick: () => shareToSocial(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`),
       tone: "neutral" as const,
     },
     {
       label: "Email",
       icon: Mail,
-      onClick: () => window.open(`mailto:?subject=${encodeURIComponent(event.title)}&body=${encodeURIComponent(shareText + "\n\n" + shareUrl)}`, "_self"),
+      onClick: shareToEmail,
       tone: "neutral" as const,
     },
   ];
@@ -306,10 +331,10 @@ function EventCard({ event }: { event: BlakEvent }) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setShareOpen(true); }}
-            className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-ink/85 text-cream shadow-md backdrop-blur-sm transition-all hover:bg-ink hover:scale-110"
+            className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-ink/90 text-cream shadow-lg ring-1 ring-cream/10 backdrop-blur-sm transition-colors hover:bg-ink hover:ring-cream/30"
             aria-label="Share event"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="h-5 w-5" />
           </button>
         </div>
 
