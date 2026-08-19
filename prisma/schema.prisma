@@ -1,13 +1,12 @@
 // BlakNet Prisma schema
-// Adapted from the BlakNet spec (Supabase/PostgreSQL) to Prisma + SQLite.
-// SQLite notes: no native arrays/enums — use String + a separate join table for tags.
+// Database: Supabase (PostgreSQL)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

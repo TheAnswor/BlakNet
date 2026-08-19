@@ -1,22 +1,57 @@
 # BlakNet Deployment Guide
 
-## Prerequisites
-- Node.js 18+ (or Bun)
-- A hosting plan that supports Node.js (VPS, or Hostinger VPS plan)
+## Database: Supabase (PostgreSQL)
 
-> **Note**: Hostinger **shared** hosting does NOT support Node.js apps.
-> You need a Hostinger **VPS** plan, or use Vercel/Render/Railway instead.
+BlakNet uses **Supabase** as its database. This is a free, cloud-hosted PostgreSQL database that works from any server.
 
-## Quick Deploy on Vercel (recommended)
-```bash
-# 1. Push to GitHub (already done)
-# 2. Go to vercel.com → New Project → Import TheAnswor/BlakNet
-# 3. Framework: Next.js (auto-detected)
-# 4. Add Environment Variable:
-#    DATABASE_URL = file:./db/custom.db
-# 5. Build Command: bun run build
-# 6. Deploy
+### Step 1: Create a Supabase Project
+1. Go to [supabase.com](https://supabase.com) → Sign up (free)
+2. Create a **New Project** (pick a name, choose a region close to your users)
+3. Set a database password (save it!)
+4. Wait ~2 minutes for the project to be ready
+
+### Step 2: Get Your Connection String
+1. Go to **Project Settings → Database**
+2. Find the **Connection string** section
+3. Copy the **Direct connection** string:
+   ```
+   postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
+   ```
+
+### Step 3: Configure the App
+Create a `.env` file in the project root:
+```env
+DATABASE_URL="postgresql://postgres:YOUR_ACTUAL_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres"
 ```
+
+### Step 4: Set Up the Database
+```bash
+# Install dependencies
+bun install
+
+# Generate Prisma client + create all tables + seed demo data
+bun run db:setup
+```
+
+This creates all tables in Supabase and seeds:
+- 12 realistic South African demo businesses across multiple industries
+- 6 events, 12 resources, 6 newsfeed posts
+- Demo user: demo@blaknet.co.za / blaknet123 (VERIFIED plan)
+- Admin: admin@blaknet.co.za / blaknetadmin
+
+---
+
+## Deploy on Vercel (recommended — 2 minutes)
+
+1. Push the repo to GitHub (already done: https://github.com/TheAnswor/BlakNet)
+2. Go to [vercel.com](https://vercel.com) → **New Project** → Import `TheAnswor/BlakNet`
+3. Framework Preset: **Next.js** (auto-detected)
+4. Add **Environment Variable**:
+   - `DATABASE_URL` = your Supabase connection string
+5. **Deploy** — Vercel builds and hosts the app automatically
+6. You get a live URL like `blaknet.vercel.app` — share it with your superior!
+
+---
 
 ## Deploy on Hostinger VPS
 
@@ -25,49 +60,33 @@
 ssh user@your-server-ip
 ```
 
-### 2. Install Node.js + Bun
+### 2. Install Bun
 ```bash
 curl -fsSL https://bun.sh/install | bash
-# or install Node.js 18+ via nvm
+source ~/.bashrc
 ```
 
-### 3. Clone the repo
+### 3. Clone + build
 ```bash
 git clone https://github.com/TheAnswor/BlakNet.git
 cd BlakNet
-```
 
-### 4. Install dependencies + build
-```bash
+# Set the Supabase connection string
+echo 'DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@db.YOUR_REF.supabase.co:5432/postgres"' > .env
+
+# Install + setup database + build
 bun install
-bun run db:push    # create the database
-bun run db:seed    # seed demo data
-bun run build      # build for production
+bun run db:setup
+bun run build
 ```
 
-### 5. Set environment variables
-Create a `.env` file:
-```env
-DATABASE_URL=file:./db/custom.db
-```
-
-### 6. Start the production server
+### 4. Start the production server
 ```bash
 bun run start
 # OR: node .next/standalone/server.js
 ```
 
-### 7. Set up a reverse proxy (nginx/Apache)
-Point your domain to `localhost:3000`:
-
-**Apache** (`.htaccess` in public_html):
-```apache
-RewriteEngine On
-RewriteRule ^(.*)$ http://localhost:3000/$1 [P,L]
-ProxyPassReverse / http://localhost:3000/
-```
-
-**OR nginx**:
+### 5. Set up a reverse proxy (nginx)
 ```nginx
 server {
     listen 80;
@@ -82,7 +101,7 @@ server {
 }
 ```
 
-### 8. Keep it running (PM2)
+### 6. Keep it running with PM2
 ```bash
 npm install -g pm2
 pm2 start "node .next/standalone/server.js" --name blaknet
@@ -90,38 +109,28 @@ pm2 startup
 pm2 save
 ```
 
-## Deploy with Docker
-```bash
-# Build
-docker build -t blaknet .
+---
 
-# Run
-docker run -p 3000:3000 -v $(pwd)/db:/app/db blaknet
-```
-
-## Login Credentials (demo data)
-- **Demo user**: demo@blaknet.co.za / blaknet123
+## Login Credentials (after seeding)
+- **Demo user**: demo@blaknet.co.za / blaknet123 (VERIFIED plan)
 - **Admin**: admin@blaknet.co.za / blaknetadmin
 
 ## Troubleshooting
 
-### "Doesn't login" / cookie issues
-- Make sure you're accessing via **HTTPS** in production (the cookie uses `secure: true` + `sameSite: none` in production)
-- If using a reverse proxy, make sure it forwards the `Host` and `X-Forwarded-Proto` headers
-- Check that the database file exists and is writable: `ls -la db/custom.db`
+### "Doesn't login" / connection errors
+- Verify the `DATABASE_URL` in `.env` matches your Supabase connection string exactly
+- Make sure the password is correct (no special characters that need URL encoding)
+- Check that your Supabase project is running (not paused)
+- For Vercel: add `DATABASE_URL` as an Environment Variable in the Vercel dashboard
 
-### Database not found
+### Database tables missing
 ```bash
-# The DATABASE_URL is relative: file:./db/custom.db
-# Make sure the db/ directory exists and is writable:
-mkdir -p db
-chmod 755 db
-# Re-seed if needed:
-bun run db:push && bun run db:seed
+bun run db:setup  # creates tables + seeds demo data
 ```
 
-### Port already in use
+### Build fails
 ```bash
-# Change the port:
-PORT=8080 node .next/standalone/server.js
+bun install          # reinstall dependencies
+bun run db:generate  # regenerate Prisma client for PostgreSQL
+bun run build        # build the app
 ```
