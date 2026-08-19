@@ -46,9 +46,10 @@ export function MyBusinessesView() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* Page heading */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
+      <div className="space-y-6">
+        {/* Page heading */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-xl">
           <div className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-sage">
             <Building2 className="h-3.5 w-3.5" /> My Businesses
@@ -116,6 +117,7 @@ export function MyBusinessesView() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }
