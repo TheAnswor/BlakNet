@@ -382,7 +382,7 @@ function EventCard({ event }: { event: BlakEvent }) {
               {event.title}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-3 py-2">
+          <div className="grid grid-cols-3 gap-2 py-1">
             {shareOptions.map((opt) => {
               const Icon = opt.icon;
               return (
@@ -390,30 +390,18 @@ function EventCard({ event }: { event: BlakEvent }) {
                   key={opt.label}
                   type="button"
                   onClick={() => { opt.onClick(); }}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 transition-all hover:border-foreground/25 hover:bg-muted hover:shadow-sm"
+                  className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2.5 transition-all hover:border-foreground/25 hover:bg-muted hover:shadow-sm"
                 >
                   <span className={
-                    "flex h-11 w-11 items-center justify-center rounded-full " +
+                    "flex h-8 w-8 items-center justify-center rounded-full " +
                     (opt.tone === "ink" ? "bg-ink text-cream" : "bg-foreground/5 text-foreground/70")
                   }>
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4" />
                   </span>
-                  <span className="text-xs font-medium text-foreground/80">{opt.label}</span>
+                  <span className="text-[11px] font-medium text-foreground/80">{opt.label}</span>
                 </button>
               );
             })}
-          </div>
-          {/* Link preview */}
-          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-            <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate text-xs text-muted-foreground">{shareUrl}</span>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="ml-auto shrink-0 text-xs font-medium text-sage hover:underline"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
           </div>
         </DialogContent>
       </Dialog>
