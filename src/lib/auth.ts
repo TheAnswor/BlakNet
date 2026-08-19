@@ -69,11 +69,9 @@ export async function loginUser(email: string, password: string): Promise<AuthUs
   await db.session.create({
     data: { token, userId: user.id, expiresAt },
   });
-  const isProduction = process.env.NODE_ENV === "production";
   (await cookies()).set(COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: isProduction ? "none" : "lax",
-    secure: isProduction,
+    sameSite: "lax",
     path: "/",
     expires: expiresAt,
   });
@@ -112,11 +110,7 @@ export async function logoutUser() {
   if (token) {
     await db.session.deleteMany({ where: { token } }).catch(() => {});
   }
-  const isProduction = process.env.NODE_ENV === "production";
-  (await cookies()).delete(COOKIE_NAME, {
-    path: "/",
-    ...(isProduction ? { secure: true, sameSite: "none" as const } : {}),
-  });
+  (await cookies()).delete(COOKIE_NAME);
 }
 
 export async function demoLogin(): Promise<AuthUser | null> {
