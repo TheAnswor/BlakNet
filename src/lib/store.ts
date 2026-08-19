@@ -8,7 +8,7 @@ function parseHash(hash: string): Route {
   const clean = hash.replace(/^#\/?/, "").trim();
   const parts = clean ? clean.split("/") : [];
 
-  if (parts.length === 0 || parts[0] === "") return { name: "home" };
+  if (parts.length === 0 || parts[0] === "") return { name: "newsfeed" };
   const [a, b, c] = parts;
 
   switch (a) {
@@ -81,7 +81,7 @@ function parseHash(hash: string): Route {
 export function routeToHash(route: Route): string {
   switch (route.name) {
     case "home":
-      return "#/";
+      return "#/newsfeed";
     case "business":
       return `#/business/${encodeURIComponent(route.slug)}`;
     case "event":

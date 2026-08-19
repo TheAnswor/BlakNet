@@ -12,8 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { initials } from "@/lib/format";
 
 const PUBLIC_LINKS: { label: string; route: Parameters<ReturnType<typeof useApp.getState>["navigate"]>[0] }[] = [
-  { label: "Directory", route: { name: "directory" } },
   { label: "Newsfeed", route: { name: "newsfeed" } },
+  { label: "Directory", route: { name: "directory" } },
   { label: "Events", route: { name: "events" } },
   { label: "Resources", route: { name: "resources" } },
   { label: "Pricing", route: { name: "pricing" } },
@@ -57,7 +57,7 @@ export function PublicHeader() {
         {/* Logo */}
         <button
           type="button"
-          onClick={() => navigate({ name: "home" })}
+          onClick={() => navigate({ name: "newsfeed" })}
           className="shrink-0 transition-opacity hover:opacity-80"
           aria-label="BlakNet home"
         >
@@ -181,7 +181,7 @@ export function PublicHeader() {
                           await fetch("/api/auth/logout", { method: "POST" });
                           await useApp.getState().refreshAuth();
                           toast({ title: "Signed out", description: "Come back soon." });
-                          navigate({ name: "home" });
+                          navigate({ name: "newsfeed" });
                         }}
                       >
                         <LogOut className="mr-2 h-4 w-4" /> Sign out
@@ -271,7 +271,7 @@ function UserMenu() {
                 await fetch("/api/auth/logout", { method: "POST" });
                 await refreshAuth();
                 toast({ title: "Signed out" });
-                navigate({ name: "home" });
+                navigate({ name: "newsfeed" });
                 setOpen(false);
               }}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/5"

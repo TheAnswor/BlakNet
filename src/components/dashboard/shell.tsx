@@ -66,7 +66,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const Sidebar = (
     <div className="flex h-full flex-col bg-ink text-cream">
       <div className="flex h-16 items-center gap-2.5 px-5">
-        <button onClick={() => navigate({ name: "home" })} className="flex items-center gap-2.5">
+        <button onClick={() => navigate({ name: "newsfeed" })} className="flex items-center gap-2.5">
           <LogoMark className="text-cream" size={32} />
           <span className="font-display text-2xl tracking-tight">
             Blak<span className="text-sage">Net</span>
@@ -111,7 +111,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <button
-          onClick={() => navigate({ name: "home" })}
+          onClick={() => navigate({ name: "newsfeed" })}
           className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs text-cream/50 hover:bg-cream/5 hover:text-cream"
         >
           <ExternalLink className="h-3.5 w-3.5" /> View public site
@@ -170,7 +170,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
                 await useApp.getState().refreshAuth();
-                navigate({ name: "home" });
+                navigate({ name: "newsfeed" });
               }}
               className="text-muted-foreground"
             >

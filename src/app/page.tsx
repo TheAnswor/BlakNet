@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useApp } from "@/lib/store";
 import { PublicHeader } from "@/components/public/header";
 import { PublicFooter } from "@/components/public/footer";
-import { HomeView } from "@/views/public/home";
+
 import { DirectoryView } from "@/views/public/directory";
 import { BusinessProfileView } from "@/views/public/business-profile";
 import { NewsfeedView } from "@/views/public/newsfeed";
@@ -173,10 +173,9 @@ export default function Page() {
     <div className="flex min-h-screen flex-col bg-background">
       {isPublic && <PublicHeader />}
       <main className="flex flex-1 flex-col">
-        {route.name === "home" && <HomeView />}
+        {(route.name === "home" || route.name === "newsfeed") && <NewsfeedView />}
         {route.name === "directory" && <DirectoryView />}
         {route.name === "business" && <BusinessProfileView />}
-        {route.name === "newsfeed" && <NewsfeedView />}
         {route.name === "events" && <EventsView />}
         {route.name === "event" && <EventDetailView />}
         {route.name === "resources" && <ResourcesView />}

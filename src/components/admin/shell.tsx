@@ -204,7 +204,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
                 await useApp.getState().refreshAuth();
-                navigate({ name: "home" });
+                navigate({ name: "newsfeed" });
               }}
               className="text-muted-foreground"
             >
